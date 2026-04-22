@@ -1,0 +1,52 @@
+[gd_scene load_steps=3 format=3 uid="uid://b3v5k7m8n2p1q"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_ramp"]
+size = Vector3(20, 2, 10)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ramp"]
+size = Vector3(20, 2, 10)
+
+[node name="Level" type="Node3D"]
+
+[node name="WaterPlane" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5, 0)
+mesh = PlaneMesh.new()
+mesh.size = Vector2(200, 200)
+mesh.subdivide_depth = 50
+mesh.subdivide_width = 50
+material = StandardMaterial3D.new()
+material.albedo_color = Color(0.1, 0.3, 0.8, 0.8)
+material.transparency = 1
+
+[node name="Ramp1" type="StaticBody3D" parent="."]
+transform = Transform3D(0.866025, 0.5, 0, -0.5, 0.866025, 0, 0, 0, 1, 0, 0, 20)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ramp1"]
+mesh = SubResource("BoxMesh_ramp")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ramp1"]
+shape = SubResource("BoxShape3D_ramp")
+
+[node name="Ramp2" type="StaticBody3D" parent="."]
+transform = Transform3D(0.866025, -0.5, 0, 0.5, 0.866025, 0, 0, 0, 1, 30, 0, 10)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ramp2"]
+mesh = SubResource("BoxMesh_ramp")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ramp2"]
+shape = SubResource("BoxShape3D_ramp")
+
+[node name="Ramp3" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, -20, 0, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ramp3"]
+mesh = SubResource("BoxMesh_ramp")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ramp3"]
+shape = SubResource("BoxShape3D_ramp")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
+light_energy = 1.5
+light_angular_distance = 0.1
+shadow_enabled = true

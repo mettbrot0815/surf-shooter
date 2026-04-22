@@ -1,0 +1,24 @@
+[gd_scene load_steps=3 format=3 uid="uid://muzzle_flash"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_flash"]
+albedo_color = Color(1, 0.8, 0.2, 1)
+emission_enabled = true
+emission = Color(1, 0.8, 0.2, 1)
+emission_energy_multiplier = 2.0
+
+[sub_resource type="SphereMesh" id="SphereMesh_flash"]
+radius = 0.1
+height = 0.2
+
+[node name="MuzzleFlash" type="Node3D"]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("SphereMesh_flash")
+material = SubResource("StandardMaterial3D_flash")
+
+[node name="Timer" type="Timer" parent="."]
+wait_time = 0.1
+one_shot = true
+autostart = true
+
+[connection signal="timeout" from="Timer" to="." method="queue_free"]

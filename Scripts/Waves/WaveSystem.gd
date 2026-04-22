@@ -102,20 +102,22 @@ func get_surface_normal(x: float, z: float) -> Vector3:
 	return wave_normal.normalized()
 
 func get_friction_at(x: float, z: float) -> float:
-	var pos_key := "%s,%s" % [x, z]
-	
+	var pos_key := "%.1f,%.1f" % [x, z]  # Round to reduce cache misses
+
 	if pos_key in friction_cache:
 		return friction_cache[pos_key]
-	
+
 	var wave_height: float = get_wave_height(x, z)
-	var depth: float = wave_height - (z - water_level)
-	
+	var depth: float = global_position.y - wave_height  # Depth = player_y - wave_height
+
 	var friction: float = default_friction
-	if depth > 0:
-		friction = maxf(default_friction * (1.0 - depth / 100.0), 0.1)
-	else:
-		friction = default_friction * 2.0
-	
+	if depth > 0:  # Underwater
+		# Higher friction when deeper underwater
+		friction = clamp(default_friction + depth * 0.01, 0.5, 2.0)
+	else:  # Above water
+		# Less friction when above water (air resistance)
+		friction = default_friction * 0.8
+
 	friction_cache[pos_key] = friction
 	return friction
 

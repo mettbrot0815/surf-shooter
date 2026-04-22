@@ -33,10 +33,11 @@ var rollback_index: int = 0
 func _ready() -> void:
 	print("DeterministicPhysicsServer started at " + str(current_tick))
 	if auto_step:
-		step()
+		# Use _physics_process for fixed timestep
+		pass  # _physics_process will handle stepping
 
 
-func _process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if auto_step:
 		step()
 
@@ -44,9 +45,10 @@ func _process(_delta: float) -> void:
 func step() -> void:
 	"""Execute a single physics tick"""
 	current_tick += 1
-	# Physics stepping would happen here
-	# physics_step()
+	# Emit tick completed signal for all physics objects
 	physics_tick_completed.emit(current_tick, delta)
+	# Save state snapshot every tick for rollback
+	save_state()
 
 
 # =============================================================================

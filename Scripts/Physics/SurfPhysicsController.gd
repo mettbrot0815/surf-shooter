@@ -61,10 +61,7 @@ func _ready() -> void:
 	add_to_group("players")
 	_last_position = global_position
 
-	# Connect to deterministic physics server
-	var physics_server = DeterministicPhysicsServer
-	if physics_server:
-		physics_server.physics_tick_completed.connect(_on_physics_tick)
+	# Physics handled directly in _physics_process at 300Hz
 
 	# Connect to timer for practice mode
 	var timer = SpeedrunTimer
@@ -72,13 +69,8 @@ func _ready() -> void:
 		timer.enable_practice_mode()  # Enable by default for testing
 
 
-func _on_physics_tick(tick: int, delta: float) -> void:
-	_fixed_physics_update(delta)
-
-
 func _physics_process(delta: float) -> void:
-	# Physics is now handled by DeterministicPhysicsServer
-	pass
+	_fixed_physics_update(delta)
 
 
 func _fixed_physics_update(_delta: float) -> void:
@@ -154,13 +146,13 @@ func _check_water_surface() -> void:
 	var wave_system = get_tree().get_first_node_in_group("wave_system")
 	if wave_system:
 		var water_height := wave_system.get_wave_height(global_position.x, global_position.z)
-		var height_diff := water_height - global_position.y
+		var depth := global_position.y - water_height
 
-		if height_diff >= -water_surface_threshold:
+		if depth <= water_surface_threshold:  # Player is at or below water surface
 			_is_in_water = true
 			# Use dynamic surface normal from waves
 			_ground_normal = wave_system.get_surface_normal(global_position.x, global_position.z)
-			# Dynamic friction based on wave height
+			# Dynamic friction based on depth
 			_surface_friction = wave_system.get_friction_at(global_position.x, global_position.z)
 			surf_state_changed.emit(_is_in_water, _is_on_ramp)
 
@@ -213,40 +205,48 @@ func _apply_surf_movement(delta: float) -> void:
 	else:
 		surface_normal = _ground_normal
 
-	# Calculate the component of velocity parallel to the surface
-	var velocity_parallel := velocity - velocity.dot(surface_normal) * surface_normal
+	# CS:GO style surf physics
+	# Deflect velocity along the surface normal
+	var velocity_dot_normal := velocity.dot(surface_normal)
 
-	# Calculate surf direction (perpendicular to surface normal)
+	# Only deflect if moving towards the surface
+	if velocity_dot_normal < 0:
+		# Calculate deflection: reflect velocity off surface
+		var deflection := velocity - 2 * velocity_dot_normal * surface_normal
+		# Apply some friction/energy loss
+		var deflection_strength := 0.98  # Slight energy loss
+		velocity = deflection * deflection_strength
+
+	# Calculate surf direction (perpendicular component)
+	var velocity_parallel := velocity - velocity.dot(surface_normal) * surface_normal
 	var surf_direction := velocity_parallel.cross(surface_normal).cross(surface_normal).normalized()
 
-	# If no perpendicular component, use wish direction
+	# If no perpendicular component, use wish direction projected onto surface
 	if surf_direction == Vector3.ZERO or surf_direction.length() < 0.1:
-		surf_direction = _wish_direction
+		surf_direction = (_wish_direction - _wish_direction.dot(surface_normal) * surface_normal).normalized()
 		if surf_direction == Vector3.ZERO:
 			return
-
-	# Project surf direction onto the surface plane
-	surf_direction = (surf_direction - surf_direction.dot(surface_normal) * surface_normal).normalized()
 
 	var current_speed := velocity.length()
 	var add_speed := surf_acceleration * delta
 
 	# Apply acceleration in surf direction
-	velocity += surf_direction * add_speed * ramp_deflection_strength
+	velocity += surf_direction * add_speed
 
-		if _is_on_ramp:
-			# Calculate ramp angle for speed gain
-			var ramp_angle := acos(surface_normal.dot(Vector3.UP))
-			var angle_factor := clamp(ramp_angle / deg_to_rad(max_ramp_angle), 0.0, 1.0)
+	# Ramp speed gain based on angle
+	if _is_on_ramp:
+		var ramp_angle := acos(surface_normal.dot(Vector3.UP))
+		var angle_factor := clamp(ramp_angle / deg_to_rad(max_ramp_angle), 0.0, 1.0)
 
-			# Ramp push based on angle and current speed
-			var ramp_push := surface_normal * add_speed * angle_factor * ramp_boost_factor
-			velocity += ramp_push
+		# Optimal ramp surfing gives speed boost
+		if angle_factor > 0.3:  # Sweet spot angles
+			var speed_boost := current_speed * angle_factor * ramp_boost_factor * delta
+			velocity += surf_direction * speed_boost
 
-			# Additional speed retention on ramps
-			if current_speed > 100.0:
-				var retention_factor := min(current_speed / 1000.0, ramp_speed_retention)
-				velocity += velocity_parallel * retention_factor * delta
+		# Speed retention for high speeds
+		if current_speed > 200.0:
+			var retention := min(current_speed * ramp_speed_retention * delta, current_speed * 0.1)
+			velocity += velocity_parallel.normalized() * retention
 
 	var new_speed := velocity.length()
 	if new_speed > surf_max_velocity:
@@ -255,7 +255,7 @@ func _apply_surf_movement(delta: float) -> void:
 	_current_speed = velocity.length()
 
 	if log_movement:
-		print("Surf: speed=%.1f normal=%s angle=%.1f" % [_current_speed, surface_normal, rad_to_deg(acos(surface_normal.dot(Vector3.UP)))])
+		print("Surf: speed=%.1f normal=%s angle=%.1f deflection=%.3f" % [_current_speed, surface_normal, rad_to_deg(acos(surface_normal.dot(Vector3.UP))), velocity_dot_normal])
 
 
 func _apply_friction(delta: float) -> void:
