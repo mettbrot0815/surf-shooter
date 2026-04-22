@@ -340,6 +340,10 @@ func get_peak_speed() -> float:
 	return _peak_speed
 
 
+func get_current_speed() -> float:
+	return _current_speed
+
+
 func get_total_distance() -> float:
 	return _total_distance_traveled
 

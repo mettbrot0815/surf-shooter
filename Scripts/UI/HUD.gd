@@ -12,8 +12,14 @@ var _player: SurfPhysicsController = null
 
 func _ready() -> void:
 	_timer = SpeedrunTimer
-	_weapon_system = get_tree().get_first_node_in_group("weapon_system")
 	_player = get_tree().get_first_node_in_group("players")
+
+	# Find WeaponSystem as child of player
+	if _player:
+		for child in _player.get_children():
+			if child is WeaponSystem:
+				_weapon_system = child
+				break
 
 	if _weapon_system:
 		_weapon_system.weapon_changed.connect(_on_weapon_changed)
