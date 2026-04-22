@@ -109,10 +109,17 @@ func run_performance_test() -> Promise:
 
 func run_weapon_test() -> Promise:
 	var test = Promise.new()
-	
+
 	print("  Testing weapon system...")
-	
-	var weapon_system = get_tree().get_first_node_in_group("players")
+
+	var player = get_tree().get_first_node_in_group("players")
+	var weapon_system = null
+	if player:
+		for child in player.get_children():
+			if child is WeaponSystem:
+				weapon_system = child
+				break
+
 	if weapon_system and weapon_system.has_method("fire_weapon"):
 		var initial_ammo = weapon_system.get_current_ammo()
 		
