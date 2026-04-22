@@ -25,13 +25,13 @@ signal speed_updated(speed: float)
 @export var stop_speed: float = 100.0
 
 @export_group("Surf Physics")
-@export var surf_acceleration: float = 2500.0
+@export var surf_acceleration: float = 4000.0
 @export var surf_max_velocity: float = 6000.0
 @export var ramp_deflection_strength: float = 1.0
 @export var min_ramp_angle: float = 10.0
 @export var max_ramp_angle: float = 60.0
 @export var ramp_speed_retention: float = 0.1
-@export var ramp_boost_factor: float = 0.8
+@export var ramp_boost_factor: float = 1.2
 @export var water_surface_threshold: float = 50.0
 
 @export_group("Debug")
