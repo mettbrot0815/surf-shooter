@@ -6,7 +6,20 @@ func _ready() -> void:
 
 func _on_start_pressed() -> void:
 	visible = false
-	# Start the game - perhaps load level or just hide menu
+	# Start the timer
+	var timer = SpeedrunTimer
+	if timer:
+		timer.start_timer()
 
 func _on_quit_pressed() -> void:
 	get_tree().quit()
+
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("practice_mode"):
+		var timer = SpeedrunTimer
+		if timer:
+			if timer.is_practice_mode():
+				timer.disable_practice_mode()
+			else:
+				timer.enable_practice_mode()
+			print("Practice mode:", timer.is_practice_mode())

@@ -69,7 +69,7 @@ var _playback_position: float = 0.0
 
 func _ready() -> void:
 	# Subscribe to physics events for recording
-	_replay_system = DeterministicPhysicsServer.get_instance()
+	_replay_system = DeterministicPhysicsServer
 	if _replay_system:
 		_replay_system.physics_tick_completed.connect(_on_physics_tick)
 
