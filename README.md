@@ -6,12 +6,13 @@ A professional speedrun-focused high-skill momentum shooter combining buttery-sm
 
 - **CS:GO-Style Surf Physics**: Air acceleration with camera-relative wishdir, ramp deflection with speed gain on proper angles, momentum preservation.
 - **Deterministic Simulation**: 300 Hz physics for reproducible runs, full state snapshots for replays and rollback.
-- **Weapon System**: Pistol and rifle with recoil affecting player velocity, deterministic spread patterns, visual weapon models.
+- **Weapon System**: Pistol and rifle with recoil affecting player velocity, deterministic spread patterns, weapon sway/bob, visual weapon models.
 - **Speedrun Tools**: Millisecond-precision timer, splits, practice mode with instant restart, checkpoints with preview and teleport.
-- **Ghost Replays**: Record/playback at 300 Hz using state snapshots, variable speed, compression.
-- **Water Interaction**: Dynamic friction and surface normals using Gerstner waves.
-- **UI/Polish**: Debug overlay (velocity, speed, timer, physics), full HUD (timer, speedometer, ammo, weapon), responsive controls.
-- **Level**: Basic ramps, water plane, checkpoints - ready for expansion.
+- **Ghost Replays**: Record/playback at 300 Hz using state snapshots, compression, variable speed support.
+- **Water Interaction**: Dynamic friction and surface normals using Gerstner waves with depth-based physics.
+- **UI/Polish**: Debug overlay (velocity, speed, timer, physics), full HUD (timer, speedometer, ammo, weapon), main menu, responsive controls.
+- **Testing Suite**: Comprehensive automated tests for determinism, performance, weapons, water, and surfing mechanics.
+- **Level**: Multiple angled ramps, water plane, WaveSystem integration - ready for expansion.
 
 ## Controls
 
@@ -63,11 +64,20 @@ Adjust parameters in SurfPhysicsController for movement feel:
 
 ## Development Status
 
-✅ **Core Movement**: CS:GO-style surfing with 300Hz deterministic physics  
-✅ **Weapons**: Projectile shooting with recoil, sway, ammo management  
-✅ **Speedrun Tools**: Timer, checkpoints, practice mode, ghost replays  
-✅ **UI**: HUD, debug overlay, main menu  
-✅ **Water Physics**: Dynamic waves with surface interaction  
+✅ **Phase 1**: Core Movement - CS:GO-style surfing with 300Hz deterministic physics
+✅ **Phase 2**: Weapons System - Projectile shooting with recoil, sway, ammo management
+✅ **Phase 3**: Testing & Integration - Comprehensive test suite, all systems verified
+🔄 **Phase 4**: Audio & Polish - Sound implementation, level expansion, final touches
+
+**Current Branch**: `phase3-debugging` (pushed to remote)
+**Test Status**: Full integration verified, ready for gameplay testing
+
+## Quick Start Testing
+
+1. Open `Scenes/DebugMain.tscn` in Godot
+2. Run the scene to execute automated test suite
+3. Check console for test results (should show 5/5 passed)
+4. Use `Scenes/main.tscn` for normal gameplay
 
 ## Roadmap
 
