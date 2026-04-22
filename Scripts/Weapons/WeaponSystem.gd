@@ -29,10 +29,21 @@ signal ammo_updated(weapon_type: String, ammo: int)
 @export var bullet_radius: float = 0.1
 @export var bullet_color: Color = Color.RED
 
+@export_group("Weapon Sway & Bob")
+@export var sway_intensity: float = 0.1
+@export var sway_speed: float = 2.0
+@export var bob_intensity: float = 0.05
+@export var bob_speed: float = 10.0
+@export var bob_frequency: float = 2.0
+
 @export_group("Debug")
 @export var log_movement: bool = false
 
 var _current_weapon: String = "pistol"
+var _sway_offset: Vector3 = Vector3.ZERO
+var _bob_offset: Vector3 = Vector3.ZERO
+var _mouse_delta: Vector2 = Vector2.ZERO
+var _bob_time: float = 0.0
 var _ammo: Dictionary = {
 	"pistol": pistol_ammo,
 	"rifle": rifle_ammo
@@ -44,10 +55,16 @@ var _is_shooting: bool = false
 func _ready() -> void:
 	add_to_group("players")
 	_update_ammo()
+	_update_weapon_visual()
 
 func _physics_process(delta: float) -> void:
 	if _fire_cooldown > 0.0:
 		_fire_cooldown -= delta
+
+func _process(delta: float) -> void:
+	_update_weapon_sway(delta)
+	_update_weapon_bob(delta)
+	_apply_weapon_offsets()
 
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("shoot") or event.is_action_pressed("fire"):
@@ -58,6 +75,8 @@ func _input(event: InputEvent) -> void:
 		switch_to_weapon("pistol")
 	elif event.is_action_pressed("weapon_2"):
 		switch_to_weapon("rifle")
+	elif event is InputEventMouseMotion:
+		_mouse_delta = event.relative * 0.001  # Scale mouse delta
 
 func _update_ammo() -> void:
 	ammo_updated.emit(_current_weapon, _ammo[_current_weapon])
@@ -206,7 +225,24 @@ func switch_to_weapon(weapon: String) -> void:
 		_current_weapon = weapon
 		weapon_changed.emit(_current_weapon)
 		_update_ammo()
+		_update_weapon_visual()
 		print("Switched to " + _current_weapon)
+
+func _update_weapon_visual() -> void:
+	var weapon_mesh = $WeaponMesh
+	if weapon_mesh and weapon_mesh.mesh:
+		var material = weapon_mesh.material_override
+		if not material:
+			material = StandardMaterial3D.new()
+			weapon_mesh.material_override = material
+
+		# Change color based on weapon
+		if _current_weapon == "pistol":
+			material.albedo_color = Color(0.8, 0.8, 0.9)  # Light gray
+			weapon_mesh.mesh.size = Vector3(0.2, 0.1, 0.5)
+		elif _current_weapon == "rifle":
+			material.albedo_color = Color(0.6, 0.4, 0.2)  # Brown
+			weapon_mesh.mesh.size = Vector3(0.3, 0.15, 0.8)
 
 func get_current_weapon() -> String:
 	return _current_weapon
@@ -218,3 +254,27 @@ func set_ammo(weapon: String, amount: int) -> void:
 	if weapon in _ammo:
 		_ammo[weapon] = amount
 		_update_ammo()
+
+func _update_weapon_sway(delta: float) -> void:
+	var mouse_motion = Input.get_last_mouse_velocity() * delta
+	_mouse_delta = _mouse_delta.lerp(mouse_motion, sway_speed * delta)
+	_sway_offset.x = -_mouse_delta.x * sway_intensity
+	_sway_offset.y = _mouse_delta.y * sway_intensity
+
+func _update_weapon_bob(delta: float) -> void:
+	var player = get_tree().get_first_node_in_group("players")
+	if player and player.has_method("get_current_speed"):
+		var speed = player.get_current_speed()
+		if speed > 10.0:  # Only bob when moving
+			_bob_time += delta * bob_speed * (speed / 100.0)
+			var bob_amount = sin(_bob_time * bob_frequency) * bob_intensity
+			_bob_offset.y = bob_amount
+			_bob_offset.x = cos(_bob_time * bob_frequency * 0.5) * bob_intensity * 0.5
+		else:
+			_bob_offset = _bob_offset.lerp(Vector3.ZERO, delta * 5.0)
+
+func _apply_weapon_offsets() -> void:
+	var weapon_mesh = $WeaponMesh
+	if weapon_mesh:
+		var base_position = Vector3(0.5, -0.2, -0.5)  # Default position
+		weapon_mesh.position = base_position + _sway_offset + _bob_offset
