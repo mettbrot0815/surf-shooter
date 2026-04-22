@@ -29,6 +29,7 @@ var last_query_position: Vector3 = Vector3.ZERO
 var last_cache_time: int = 0
 
 func _ready() -> void:
+	add_to_group("wave_system")
 	if auto_generate_waves and wave_layers.is_empty():
 		generate_wave_layers()
 
@@ -133,6 +134,14 @@ func get_wave_info() -> Dictionary:
 		"speed": wave_speed,
 		"cache_size": friction_cache.size()
 	}
+
+
+func set_wave_info(info: Dictionary) -> void:
+	wave_time = info.get("wave_time", 0.0)
+	wave_layers = []  # Reset and regenerate if needed
+	if info.has("layers_count") and info["layers_count"] > 0:
+		generate_wave_layers()
+	friction_cache.clear()
 
 func get_visualization_data() -> Array:
 	var data: Array = []

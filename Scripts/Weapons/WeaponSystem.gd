@@ -52,89 +52,137 @@ func _update_ammo() -> void:
 func fire_weapon() -> void:
 	if _fire_cooldown > 0.0:
 		return
-	
+
 	if _ammo[_current_weapon] <= 0:
 		return
-	
+
 	var weapon_settings: Dictionary = {
 		"pistol": {
 			"recoil": pistol_recoil,
 			"spread": pistol_spread,
 			"fire_rate": pistol_fire_rate,
-			"ammo": pistol_ammo
+			"damage": 25.0,
+			"projectile_speed": bullet_speed
 		},
 		"rifle": {
 			"recoil": rifle_recoil,
 			"spread": rifle_spread,
 			"fire_rate": rifle_fire_rate,
-			"ammo": rifle_ammo
+			"damage": 35.0,
+			"projectile_speed": bullet_speed
 		}
 	}
-	
+
 	var settings: Dictionary = weapon_settings[_current_weapon]
-	
-	_current_weapon = _current_weapon
+
 	_last_shot_time = Time.get_ticks_msec()
 	_fire_cooldown = settings["fire_rate"]
-	
-	ammo[_current_weapon] -= 1
+
+	_ammo[_current_weapon] -= 1
 	_update_ammo()
-	
+
 	var direction := get_shot_direction()
-	direction = direction + Vector3(randf() - 0.5, randf() - 0.5, randf() - 0.5) * settings["spread"]
-	direction = direction.normalized()
-	
+	# Deterministic spread based on shot count (not random)
+	var shot_index := _ammo[_current_weapon] % 8  # Cycle through 8 spread patterns
+	var spread_offset := _get_deterministic_spread(shot_index, settings["spread"])
+	direction = (direction + spread_offset).normalized()
+
 	apply_recoil(settings["recoil"])
-	
+
 	shot_fired.emit(_current_weapon, direction)
-	
-	_spawn_bullet(direction)
-	
-	print("Fired %s: direction=%s, ammo=%d" % [_current_weapon, direction, _ammo[_current_weapon]])
+
+	_spawn_projectile(direction, settings)
+
+	if log_movement:
+		print("Fired %s: direction=%s, ammo=%d" % [_current_weapon, direction, _ammo[_current_weapon]])
 
 func get_shot_direction() -> Vector3:
 	var camera := get_viewport().get_camera_3d()
 	if not camera:
-		return Vector3.RIGHT
-	
-	var mouse_position: Vector2 = Input.get_mouse_position()
-	var camera_transform := camera.global_transform
-	var camera_forward := camera_transform.basis.z
-	var camera_right := camera_transform.basis.x
-	var camera_up := camera_transform.basis.y
-	
-	var normalized_pos := mouse_position.normalized()
-	
-	var direction := camera_forward + camera_right * normalized_pos.x + camera_up * normalized_pos.y
+		return Vector3.FORWARD
+
+	# Use camera forward direction for shooting
+	var direction := -camera.global_transform.basis.z
 	return direction.normalized()
 
-func apply_recoil(recoil: Vector3) -> void:
-	if has_node("CharacterBody3D"):
-		var player := get_node("CharacterBody3D")
-		if player:
-			player.velocity += recoil
 
-func _spawn_bullet(direction: Vector3) -> void:
-	var bullet_body := CharacterBody3D.new()
-	bullet_body.position = global_position + Vector3.RIGHT * 0.5
-	
-	var bullet_velocity := direction * bullet_speed
-	bullet_body.velocity = bullet_velocity
-	
-	var bullet_life := 0.0
-	
-	bullet_body.body_entered = func(body: Node3D) -> void:
-		queue_free()
-	
-	get_tree().add_child(bullet_body)
-	
-	bullet_body.velocity = bullet_velocity
+func _get_deterministic_spread(index: int, max_spread: float) -> Vector3:
+	# Predefined spread patterns for deterministic behavior
+	var patterns := [
+		Vector3(0, 0, 0),
+		Vector3(0.5, 0.5, 0),
+		Vector3(-0.5, 0.5, 0),
+		Vector3(0.5, -0.5, 0),
+		Vector3(-0.5, -0.5, 0),
+		Vector3(0, 0.7, 0),
+		Vector3(0.7, 0, 0),
+		Vector3(0, -0.7, 0)
+	]
+
+	if index >= 0 and index < patterns.size():
+		return patterns[index] * max_spread
+	return Vector3.ZERO
+
+func apply_recoil(recoil: Vector3) -> void:
+	var player = get_tree().get_first_node_in_group("players")
+	if player and player.has_method("add_velocity"):
+		player.add_velocity(recoil)
+
+func _spawn_projectile(direction: Vector3, settings: Dictionary) -> void:
+	var bullet_scene = load("res://Scenes/Bullet.tscn")
+	if not bullet_scene:
+		# Fallback: create simple projectile
+		var bullet_body := CharacterBody3D.new()
+		bullet_body.position = global_position + direction * 0.5
+
+		var bullet_velocity := direction * settings["projectile_speed"]
+		bullet_body.velocity = bullet_velocity
+
+		var collision_shape := CollisionShape3D.new()
+		collision_shape.shape = SphereShape3D.new()
+		collision_shape.shape.radius = bullet_radius
+		bullet_body.add_child(collision_shape)
+
+		var mesh_instance := MeshInstance3D.new()
+		mesh_instance.mesh = SphereMesh.new()
+		mesh_instance.mesh.radius = bullet_radius
+		mesh_instance.mesh.height = bullet_radius * 2
+		var material := StandardMaterial3D.new()
+		material.albedo_color = bullet_color
+		mesh_instance.material_override = material
+		bullet_body.add_child(mesh_instance)
+
+		get_tree().root.add_child(bullet_body)
+
+		# Add muzzle flash effect
+		_add_muzzle_flash()
+
+		# Remove after lifetime
+		await get_tree().create_timer(bullet_lifetime).timeout
+		if is_instance_valid(bullet_body):
+			bullet_body.queue_free()
+	else:
+		var bullet_instance = bullet_scene.instantiate()
+		bullet_instance.position = global_position + direction * 0.5
+		bullet_instance.direction = direction
+		bullet_instance.speed = settings["projectile_speed"]
+		bullet_instance.damage = settings["damage"]
+		get_tree().root.add_child(bullet_instance)
+
+		_add_muzzle_flash()
+
+
+func _add_muzzle_flash() -> void:
+	var flash_scene = load("res://Scenes/MuzzleFlash.tscn")
+	if flash_scene:
+		var flash_instance = flash_scene.instantiate()
+		flash_instance.position = global_position + Vector3.FORWARD * 0.5
+		get_tree().root.add_child(flash_instance)
 
 func _switch_weapon() -> void:
 	var idx := available_weapons.find(_current_weapon)
 	if idx != -1 and idx + 1 < available_weapons.size():
 		_current_weapon = available_weapons[idx + 1]
-		ammo[_current_weapon] = _ammo[_current_weapon]
 		weapon_changed.emit(_current_weapon)
 		_update_ammo()
 		print("Switched to " + _current_weapon)
@@ -147,4 +195,5 @@ func get_current_ammo() -> int:
 
 func set_ammo(weapon: String, amount: int) -> void:
 	if weapon in _ammo:
-		ammo[weapon] = amount
+		_ammo[weapon] = amount
+		_update_ammo()

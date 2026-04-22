@@ -77,9 +77,22 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	# Handle preview timer
 	if _is_previewing:
-		_preview_timer -= get_process_delta_time()
+		_preview_timer -= _delta
 		if _preview_timer <= 0:
 			_start_full_playback()
+
+	# Handle playback
+	if _is_playing and _replay_data.has("ticks"):
+		var ticks: Array = _replay_data["ticks"]
+		if _preview_tick < ticks.size():
+			var tick_data: Dictionary = ticks[_preview_tick]
+			# Restore state for this tick
+			if _replay_system and tick_data.has("state"):
+				_replay_system.restore_state(tick_data["state"])
+
+			_preview_tick += 1
+		else:
+			stop_playback()
 
 
 # =============================================================================
@@ -97,7 +110,7 @@ func start_recording() -> void:
 	"""Start recording ghost replay"""
 	if _is_recording:
 		return
-	
+
 	_is_recording = true
 	_is_playing = false
 	_is_previewing = false
@@ -106,7 +119,11 @@ func start_recording() -> void:
 	_last_input_tick = 0
 	_buffer_time = 0.0
 	_recording_start_time = Time.get_ticks_msec() / 1000.0
-	
+
+	# Connect to physics server for state snapshots
+	if _replay_system:
+		_replay_system.physics_tick_completed.connect(_on_physics_tick)
+
 	if log_replay_events:
 		print("[Ghost] Recording started at " + str(_recording_start_time))
 
@@ -208,36 +225,32 @@ var _last_filename: String = ""
 
 func start_playback(filename: String, speed: float = 1.0) -> void:
 	"""Start playback of saved replay"""
-	var file: File = File.new()
-	if file.open(filename, File.READ) != File.ERROR_OK:
+	var file: FileAccess = FileAccess.open(filename, FileAccess.READ)
+	if file == null:
 		print("[Ghost] Failed to open replay:", filename)
 		return
-	
-	var json_string: String = file.get_string()
+
+	var json_string: String = file.get_as_text()
 	file.close()
-	
-	var json: Dictionary = JSON.parse_string(json_string)
+
+	var json = JSON.parse_string(json_string)
 	if json == null:
+		print("[Ghost] Failed to parse replay JSON")
 		return
-	
-	var replay_data: Dictionary = json["data"]
-	var ticks: Array = replay_data.get("ticks", [])
-	var start_time: float = replay_data.get("start_time", 0.0)
-	var duration: float = replay_data.get("duration", 0.0)
-	
-	# Create replay scene
-	var replay_scene: Node = load("res://Scenes/ReplayScene.tscn").instantiate()
-	get_tree().root.add_child(replay_scene)
-	
-	# Set replay data
-	replay_scene.set_replay_data(replay_data, start_time, duration)
-	
+
+	_replay_data = json["data"]
+	var ticks: Array = _replay_data.get("ticks", [])
+	var start_time: float = _replay_data.get("start_time", 0.0)
+	var duration: float = _replay_data.get("duration", 0.0)
+
 	_playback_speed_multiplier = clampf(speed, 0.5, max_playback_speed)
 	_playback_position = 0.0
 	_is_playing = true
 	_is_previewing = false
-	
+	_preview_tick = 0
+
 	replay_playback_started.emit()
+	print("[Ghost] Started playback of", ticks.size(), "ticks")
 
 
 func pause_playback() -> void:
@@ -378,18 +391,22 @@ func get_last_input() -> Dictionary:
 # =============================================================================
 
 func _on_physics_tick(tick: int, delta: float) -> void:
-	"""Handle physics tick for recording inputs"""
+	"""Handle physics tick for recording inputs and states"""
 	if _is_recording:
 		_buffer_time += delta
-		
+
 		# Check if we should record this tick
 		if _buffer_time >= input_buffer_delta:
+			# Save state snapshot
+			if _replay_system:
+				_replay_system.save_state()
+
 			var input_data: Dictionary = {
-				"tick": _last_input_tick,
+				"tick": tick,
 				"delta": delta,
 				"buffer_time": _buffer_time
 			}
-			
+
 			add_input_to_buffer(input_data)
 			_buffer_time = 0.0
 			_last_input_tick = tick

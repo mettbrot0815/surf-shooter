@@ -25,25 +25,29 @@ var _checkpoint_system: CheckpointSystem = null
 
 func _ready() -> void:
 	# Connect to physics server
-	_physics_server = DeterministicPhysicsServer.get_instance()
+	_physics_server = DeterministicPhysicsServer
 	if _physics_server:
 		_physics_server.physics_tick_completed.connect(_on_physics_tick)
-	
+
 	# Connect to timer
-	_timer = $VBoxContainer/TimerNode
+	_timer = SpeedrunTimer
 	if _timer:
 		_timer.speed_updated.connect(_on_speed_updated)
-	
+
 	# Connect to checkpoints
-	_checkpoint_system = $VBoxContainer/CheckpointNode
+	_checkpoint_system = get_tree().get_first_node_in_group("checkpoint_system")
 	if _checkpoint_system:
 		_checkpoint_system.checkpoint_added.connect(_on_checkpoint_added)
+
+	# Connect to wave system
+	_wave_system = get_tree().get_first_node_in_group("wave_system")
 
 
 func _process(_delta: float) -> void:
 	# Update debug information
-	if $PlayerNode:
-		_update_player_info($PlayerNode)
+	var player = get_tree().get_first_node_in_group("players")
+	if player:
+		_update_player_info(player)
 	_update_wave_info()
 	_update_timer_info()
 	_update_physics_info()
