@@ -56,10 +56,23 @@ Adjust parameters in SurfPhysicsController for movement feel:
 
 ## Known Issues
 
-- Ghost replay compression not fully optimized
-- Audio placeholders need implementation
-- Advanced level geometry not implemented
+- Audio uses placeholders (print statements) - needs real sound files
+- Ghost replay compression partially implemented
+- Level has basic ramps - needs more complex courses
+- No enemy targets or scoring system yet
+
+## Development Status
+
+✅ **Core Movement**: CS:GO-style surfing with 300Hz deterministic physics  
+✅ **Weapons**: Projectile shooting with recoil, sway, ammo management  
+✅ **Speedrun Tools**: Timer, checkpoints, practice mode, ghost replays  
+✅ **UI**: HUD, debug overlay, main menu  
+✅ **Water Physics**: Dynamic waves with surface interaction  
+
+## Roadmap
+
+See SURF_ROADMAP.md for detailed development progress and upcoming features.
 
 ## Credits
 
-Inspired by CS:GO surf and momentum shooters.
+Inspired by CS:GO surf physics and competitive momentum shooters.

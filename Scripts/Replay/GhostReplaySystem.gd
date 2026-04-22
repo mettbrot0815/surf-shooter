@@ -190,23 +190,24 @@ func _save_replay(data: Dictionary, is_compressed: bool) -> void:
 	var filename: String = "replays/ghost_" + str(Time.get_ticks_msec()) + "_" + str(int(_recording_start_time)) + ".json"
 	if is_compressed:
 		filename = "replays/ghost_" + str(Time.get_ticks_msec()) + "_compressed.json"
-	
+
 	var save_data: Dictionary = {
 		"start_time": _recording_start_time,
 		"duration": Time.get_ticks_msec() / 1000.0 - _recording_start_time,
 		"compression": is_compressed,
 		"data": data
 	}
-	
-	var file: File = File.new()
-	if file.open(filename, File.WRITE) != File.ERROR_OK:
-		print("[Ghost] Failed to save replay:", file.get_error())
+
+	var file = FileAccess.open(filename, FileAccess.WRITE)
+	if file == null:
+		print("[Ghost] Failed to save replay:", FileAccess.get_open_error())
 		return
-	
-	var json_string: String = JSON.stringify(save_data)
+
+	var json = JSON.new()
+	var json_string = json.stringify(save_data)
 	file.store_string(json_string)
 	file.close()
-	
+
 	_last_filename = filename
 	replay_saved.emit(filename)
 	print("[Ghost] Saved replay to:", filename)
@@ -225,20 +226,21 @@ var _last_filename: String = ""
 
 func start_playback(filename: String, speed: float = 1.0) -> void:
 	"""Start playback of saved replay"""
-	var file: FileAccess = FileAccess.open(filename, FileAccess.READ)
+	var file = FileAccess.open(filename, FileAccess.READ)
 	if file == null:
-		print("[Ghost] Failed to open replay:", filename)
+		print("[Ghost] Failed to open replay:", filename, " Error:", FileAccess.get_open_error())
 		return
 
-	var json_string: String = file.get_as_text()
+	var json_string = file.get_as_text()
 	file.close()
 
-	var json = JSON.parse_string(json_string)
-	if json == null:
-		print("[Ghost] Failed to parse replay JSON")
+	var json = JSON.new()
+	var error = json.parse(json_string)
+	if error != OK:
+		print("[Ghost] Failed to parse replay JSON:", error)
 		return
 
-	_replay_data = json["data"]
+	_replay_data = json.get_data()["data"]
 	var ticks: Array = _replay_data.get("ticks", [])
 	var start_time: float = _replay_data.get("start_time", 0.0)
 	var duration: float = _replay_data.get("duration", 0.0)
@@ -290,15 +292,18 @@ func set_playback_speed(speed: float) -> void:
 
 func preview_replay(filename: String) -> void:
 	"""Preview replay before playing"""
-	var file: File = File.new()
-	if file.open(filename, File.READ) != File.ERROR_OK:
+	var file = FileAccess.open(filename, FileAccess.READ)
+	if file == null:
 		return
-	
-	var json_string: String = file.get_string()
+
+	var json_string = file.get_as_text()
 	file.close()
-	
-	var json: Dictionary = JSON.parse_string(json_string)
-	var replay_data: Dictionary = json["data"]
+
+	var json = JSON.new()
+	var error = json.parse(json_string)
+	if error != OK:
+		return
+	var replay_data: Dictionary = json.get_data()["data"]
 	var ticks: Array = replay_data.get("ticks", [])
 	
 	# Get preview data from first few ticks
