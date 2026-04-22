@@ -72,21 +72,16 @@ func _update_wave_info() -> void:
 
 func _update_timer_info() -> void:
 	if _timer:
-		var data := _timer.get_full_timing_data()
-		timer_label.text = "Time: " + str(data.get("elapsed_time", 0)) + " ms"
-		checkpoint_label.text = "Checkpoints: " + str(data.get("checkpoint_count", 0)) + "/" + str(data.get("total_checkpoints", 0))
-
+		timer_label.text = "Time: " + _timer.get_current_formatted_time()
 
 func _update_physics_info() -> void:
 	if _physics_server:
-		var state := _physics_server.get_physics_state()
-		physics_label.text = "Tick: " + str(state.get("tick", 0)) + " | Delta: " + str(state.get("accumulated_delta", 0))
-
+		physics_label.text = "Tick: " + str(_physics_server.current_tick)
 
 func _update_ghost_info() -> void:
-	var ghost = GhostReplaySystem.get_instance()
+	var ghost = GhostReplaySystem
 	if ghost:
-		ghost_label.text = "Ghost: " + str(ghost.get_last_filename())
+		ghost_label.text = "Ghost: " + ghost.get_last_filename()
 
 
 func _on_physics_tick(tick: int, delta: float) -> void:

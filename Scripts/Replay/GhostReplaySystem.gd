@@ -393,23 +393,16 @@ func get_last_input() -> Dictionary:
 func _on_physics_tick(tick: int, delta: float) -> void:
 	"""Handle physics tick for recording inputs and states"""
 	if _is_recording:
-		_buffer_time += delta
-
-		# Check if we should record this tick
-		if _buffer_time >= input_buffer_delta:
-			# Save state snapshot
-			if _replay_system:
-				_replay_system.save_state()
-
-			var input_data: Dictionary = {
-				"tick": tick,
-				"delta": delta,
-				"buffer_time": _buffer_time
-			}
-
-			add_input_to_buffer(input_data)
-			_buffer_time = 0.0
-			_last_input_tick = tick
+		# Record state snapshot every tick
+		var state_snapshot = _replay_system.get_all_states()
+		var tick_data = {
+			"tick": tick,
+			"timestamp": Time.get_ticks_msec(),
+			"state": state_snapshot
+		}
+		if not _replay_data.has("ticks"):
+			_replay_data["ticks"] = []
+		_replay_data["ticks"].append(tick_data)
 
 
 # =============================================================================

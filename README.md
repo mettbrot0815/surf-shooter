@@ -31,7 +31,7 @@ A professional speedrun-focused high-skill momentum shooter combining buttery-sm
 
 ## Installation
 
-1. Clone the repo.
+1. Clone the repo: `git clone https://github.com/mettbrot0815/surf-shooter.git`
 2. Open in Godot 4.3+.
 3. Run main.tscn.
 
@@ -43,11 +43,22 @@ A professional speedrun-focused high-skill momentum shooter combining buttery-sm
 
 ## Tuning
 
-Adjust parameters in SurfPhysicsController for movement feel.
+Adjust parameters in SurfPhysicsController for movement feel:
+- `max_speed`: Base movement speed (320 default)
+- `surf_acceleration`: Surf acceleration on ramps (2500)
+- `ramp_boost_factor`: Speed gain on optimal ramp angles (0.8)
+- `ground_acceleration`: Ground acceleration (4000)
+- `air_acceleration`: Air acceleration (1500)
 
 ## Performance
 
 <200 MB memory, 60+ FPS at high speeds. Uses multi-mesh for visuals.
+
+## Known Issues
+
+- Ghost replay compression not fully optimized
+- Audio placeholders need implementation
+- Advanced level geometry not implemented
 
 ## Credits
 

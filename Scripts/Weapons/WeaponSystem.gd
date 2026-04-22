@@ -46,6 +46,16 @@ func _physics_process(delta: float) -> void:
 	if _fire_cooldown > 0.0:
 		_fire_cooldown -= delta
 
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("shoot") or event.is_action_pressed("fire"):
+		fire_weapon()
+	elif event.is_action_pressed("reload"):
+		reload_weapon()
+	elif event.is_action_pressed("weapon_1"):
+		switch_to_weapon("pistol")
+	elif event.is_action_pressed("weapon_2"):
+		switch_to_weapon("rifle")
+
 func _update_ammo() -> void:
 	ammo_updated.emit(_current_weapon, _ammo[_current_weapon])
 
@@ -179,10 +189,18 @@ func _add_muzzle_flash() -> void:
 		flash_instance.position = global_position + Vector3.FORWARD * 0.5
 		get_tree().root.add_child(flash_instance)
 
-func _switch_weapon() -> void:
-	var idx := available_weapons.find(_current_weapon)
-	if idx != -1 and idx + 1 < available_weapons.size():
-		_current_weapon = available_weapons[idx + 1]
+func reload_weapon() -> void:
+	# Simple reload - refill ammo
+	if _current_weapon == "pistol":
+		_ammo["pistol"] = pistol_ammo
+	elif _current_weapon == "rifle":
+		_ammo["rifle"] = rifle_ammo
+	_update_ammo()
+	print("Reloaded " + _current_weapon)
+
+func switch_to_weapon(weapon: String) -> void:
+	if weapon in available_weapons and weapon != _current_weapon:
+		_current_weapon = weapon
 		weapon_changed.emit(_current_weapon)
 		_update_ammo()
 		print("Switched to " + _current_weapon)
