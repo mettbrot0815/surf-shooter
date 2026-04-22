@@ -29,6 +29,9 @@ signal ammo_updated(weapon_type: String, ammo: int)
 @export var bullet_radius: float = 0.1
 @export var bullet_color: Color = Color.RED
 
+@export_group("Debug")
+@export var log_movement: bool = false
+
 var _current_weapon: String = "pistol"
 var _ammo: Dictionary = {
 	"pistol": pistol_ammo,

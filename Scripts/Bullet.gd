@@ -26,5 +26,10 @@ func _on_body_entered(body: Node3D) -> void:
 	_on_hit()
 
 func _on_hit() -> void:
-	# Add impact effect here
+	# Add impact effect
+	var impact_scene = load("res://Scenes/ImpactEffect.tscn")
+	if impact_scene:
+		var impact = impact_scene.instantiate()
+		impact.position = global_position
+		get_tree().root.add_child(impact)
 	queue_free()
