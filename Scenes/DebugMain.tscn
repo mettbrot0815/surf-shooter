@@ -1,0 +1,24 @@
+[gd_scene load_steps=6 format=3 uid="uid://debug_main"]
+
+[ext_resource type="PackedScene" path="res://Scenes/Player.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://Scenes/Level.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://Scenes/HUD.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://Scenes/UI.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://Scenes/TestRunner.tscn" id="5"]
+[ext_resource type="Script" path="res://Scripts/Waves/WaveSystem.gd" id="6"]
+
+[node name="DebugSurfShooter" type="Node3D"]
+
+[node name="WaveSystem" type="Node3D" parent="."]
+script = ExtResource("6")
+
+[node name="Level" parent="." instance=ExtResource("2")]
+
+[node name="Player" parent="." instance=ExtResource("1")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10, 0)
+
+[node name="HUD" parent="." instance=ExtResource("3")]
+
+[node name="UI" parent="." instance=ExtResource("4")]
+
+[node name="TestRunner" parent="." instance=ExtResource("5")]

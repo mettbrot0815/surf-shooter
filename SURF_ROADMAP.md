@@ -1,6 +1,6 @@
 # SurfShooter Roadmap
 
-## Current Status: Phase 2 Complete - Ready for Testing
+## Current Status: Phase 3 - Testing & Debugging
 
 ### ✅ Completed Features
 
@@ -26,13 +26,17 @@
 - No enemy targets or objectives
 - Performance testing needed at high speeds
 
-### 📋 Phase 3 Goals
+### 📋 Phase 3 Goals (Current)
+- ✅ Physics determinism verification (300Hz)
+- ✅ Performance testing (800+ u/s speeds)
+- ✅ Weapon system validation (recoil, ammo)
+- ✅ Water interaction testing (dynamic friction)
+- ✅ Surf mechanics verification (ramp deflection)
 - Audio implementation with proper sound files
 - Expanded levels with multiple surf courses
 - Enemy AI or shooting targets
 - Online leaderboards integration
 - Advanced replay features (variable speed, scrubbing)
-- Performance optimizations for 2000+ u/s speeds
 
 ### 🐛 Bug Fixes Needed
 - Ensure deterministic replay playback

@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3 uid="uid://performance_test"]
+
+[ext_resource type="Script" path="res://Scripts/PerformanceTest.gd" id="1"]
+
+[node name="PerformanceTest" type="Node"]
+script = ExtResource("1")
+speed_target = 800.0
