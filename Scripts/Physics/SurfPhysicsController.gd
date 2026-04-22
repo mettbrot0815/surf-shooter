@@ -2,25 +2,10 @@ extends CharacterBody3D
 class_name SurfPhysicsController
 
 ## SurfPhysicsController - CS:GO-style surfing physics for Godot 4.3+
-##
-## Implements Source Engine surf mechanics:
-## - Air acceleration with wishdir
-## - Surf ramp deflection
-## - Ground friction with stops
-## - Air resistance
-## - Momentum preservation
-##
-## Key Sources:
-## - Source SDK 2013 gamemovement.cpp
-## - Valve Developer Wiki: Surfing
 
 signal velocity_changed(new_velocity: Vector3)
 signal surf_state_changed(in_water: bool, on_ramp: bool)
 signal speed_updated(speed: float)
-
-# =============================================================================
-# CONFIGURATION - Tunable parameters matching Source Engine behavior
-# =============================================================================
 
 @export_group("Movement Settings")
 @export var max_speed: float = 320.0
@@ -49,10 +34,6 @@ signal speed_updated(speed: float)
 @export var show_debug_overlay: bool = false
 @export var log_movement: bool = false
 
-# =============================================================================
-# STATE - Internal physics state
-# =============================================================================
-
 var _current_speed: float = 0.0
 var _wish_speed: float = 0.0
 var _wish_direction: Vector3 = Vector3.ZERO
@@ -63,18 +44,14 @@ var _is_in_water: bool = false
 var _last_ground_collider: Node3D = null
 var _surface_friction: float = 1.0
 
-# Surf ramp detection
+@export var _wave_system: WaveSystem = null
+
 var _ramp_surface_normal: Vector3 = Vector3.ZERO
 var _ramp_detection_ray_length: float = 50.0
 
-# Velocity tracking for debugging
 var _peak_speed: float = 0.0
 var _total_distance_traveled: float = 0.0
 var _last_position: Vector3 = Vector3.ZERO
-
-# =============================================================================
-# LIFECYCLE
-# =============================================================================
 
 func _ready() -> void:
 	add_to_group("players")
@@ -104,10 +81,6 @@ func _fixed_physics_update(_delta: float) -> void:
 	_emit_signals()
 
 
-# =============================================================================
-# WISHDIRECTION - Player input transformed to world space
-# =============================================================================
-
 func _update_wish_direction() -> void:
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
 	
@@ -127,10 +100,6 @@ func _update_wish_direction() -> void:
 	
 	_wish_speed = _wish_direction.length() * current_max
 
-
-# =============================================================================
-# SURFACE DETECTION - Ground, ramp, and water detection
-# =============================================================================
 
 func _check_surface_state() -> void:
 	var was_on_ground := _is_on_ground
@@ -165,10 +134,6 @@ func _check_water_surface() -> void:
 			_ground_normal = Vector3.UP
 			surf_state_changed.emit(_is_in_water, _is_on_ramp)
 
-
-# =============================================================================
-# MOVEMENT - Ground, air, and surf movement
-# =============================================================================
 
 func _apply_ground_movement(delta: float) -> void:
 	if _wish_direction == Vector3.ZERO:
@@ -243,10 +208,6 @@ func _apply_surf_movement(delta: float) -> void:
 		print("Surf: speed=%.1f normal=%s" % [_current_speed, surface_normal])
 
 
-# =============================================================================
-# FRICTION - Ground and air friction
-# =============================================================================
-
 func _apply_friction(delta: float) -> void:
 	if _wish_direction.length() > 0 and _is_on_ground:
 		return
@@ -281,18 +242,10 @@ func _apply_friction(delta: float) -> void:
 		velocity = velocity.normalized() * new_speed
 
 
-# =============================================================================
-# JUMPING - Jump handling
-# =============================================================================
-
 func _handle_jump() -> void:
 	if Input.is_action_just_pressed("jump") and (_is_on_ground or _is_on_ramp):
 		velocity.y = jump_force
 
-
-# =============================================================================
-# STATE TRACKING - Debug and telemetry
-# =============================================================================
 
 func _update_state_tracking() -> void:
 	_current_speed = velocity.length()
@@ -309,10 +262,6 @@ func _emit_signals() -> void:
 	velocity_changed.emit(velocity)
 	speed_updated.emit(_current_speed)
 
-
-# =============================================================================
-# PUBLIC API - External access to physics state
-# =============================================================================
 
 func get_physics_state() -> Dictionary:
 	return {
@@ -351,10 +300,6 @@ func reset_position(new_position: Vector3) -> void:
 	_total_distance_traveled = 0.0
 
 
-# =============================================================================
-# DEBUG - Visual debug output
-# =============================================================================
-
 func _get_configuration_warnings() -> PackedStringArray:
 	var warnings := PackedStringArray()
 	
@@ -368,8 +313,10 @@ func _draw() -> void:
 	if not show_debug_overlay:
 		return
 	
+	# Draw velocity vector
 	var vel_end := global_position + velocity.normalized() * min(velocity.length() * 0.1, 100.0)
-	draw_line(global_position - global_position, vel_end - global_position, Color.RED, 2.0)
+	draw_line(global_position, vel_end, Color.RED, 2.0)
 	
+	# Draw wish direction vector
 	var wish_end := global_position + _wish_direction * 30.0
-	draw_line(global_position - global_position, wish_end - global_position, Color.GREEN, 2.0)
+	draw_line(global_position, wish_end, Color.GREEN, 2.0)

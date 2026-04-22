@@ -1,340 +1,150 @@
-extends Node3D
+extends CharacterBody3D
 class_name WeaponSystem
 
-## WeaponSystem - Precision shooting for surf shooter
-##
-## Implements:
-## - Recoil and spread patterns
-## - Bullet physics with gravity
-## - Hit registration
-## - Sound and visual effects
-##
-## Sources:
-## - CS:GO shooting mechanics
-## - Source engine weapon physics
+## WeaponSystem - Weapon mechanics for surf shooter
 
-signal bullet_fired(position: Vector3, velocity: Vector3)
-signal bullet_hit(hit_position: Vector3, hit_normal: Vector3, hit_entity: Node3D)
-signal enemy_hit(enemy: Node3D, damage: float)
-signal weapon_reloaded(weapon: String)
+signal weapon_changed(weapon_type: String)
+signal shot_fired(weapon_type: String, direction: Vector3)
+signal ammo_updated(weapon_type: String, ammo: int)
 
-# =============================================================================
-# WEAPONS
-# =============================================================================
+@export_group("Weapon Types")
+@export var equipped_weapon: String = "pistol"
+@export var available_weapons: Array[String] = ["pistol", "rifle"]
 
-const Pistol: Dictionary = {
-	"name": "Pistol",
-	"fire_rate": 0.3,
-	"spread": 0.1,
-	"damage": 25.0,
-	"bullet_speed": 500.0,
-	"recoil_up": 0.3,
-	"recoil_right": 0.1,
-	"recoil_spread": 0.05,
-	"magazine_size": 12,
-	"reload_time": 1.5,
-	"bullet_count": 1,
-	"auto_fire": false
+@export_group("Pistol Settings")
+@export var pistol_ammo: int = 12
+@export var pistol_recoil: Vector3 = Vector3.UP * 2.0 + Vector3.RIGHT * 0.5
+@export var pistol_spread: float = 0.02
+@export var pistol_fire_rate: float = 0.15
+
+@export_group("Rifle Settings")
+@export var rifle_ammo: int = 30
+@export var rifle_recoil: Vector3 = Vector3.UP * 4.0 + Vector3.RIGHT * 1.0
+@export var rifle_spread: float = 0.05
+@export var rifle_fire_rate: float = 0.08
+
+@export_group("World Settings")
+@export var bullet_speed: float = 300.0
+@export var bullet_lifetime: float = 2.0
+@export var bullet_radius: float = 0.1
+@export var bullet_color: Color = Color.RED
+
+var _current_weapon: String = "pistol"
+var _ammo: Dictionary = {
+	"pistol": pistol_ammo,
+	"rifle": rifle_ammo
 }
-
-const Rifle: Dictionary = {
-	"name": "Rifle",
-	"fire_rate": 0.05,
-	"spread": 0.02,
-	"damage": 12.0,
-	"bullet_speed": 700.0,
-	"recoil_up": 0.15,
-	"recoil_right": 0.05,
-	"recoil_spread": 0.01,
-	"magazine_size": 30,
-	"reload_time": 2.0,
-	"bullet_count": 1,
-	"auto_fire": true
-}
-
-var _current_weapon: Dictionary = Pistol
-var _fire_rate_timer: float = 0.0
-var _is_reloading: bool = false
-var _current_magazine: int = 12
-var _current_ammo: int = 12
+var _fire_cooldown: float = 0.0
 var _last_shot_time: float = 0.0
-var _recoil_accumulation: Vector3 = Vector3.ZERO
-
-# =============================================================================
-# CONFIGURATION
-# =============================================================================
-
-@export_group("Muzzle Flash")
-@export var muzzle_flash_scene: PackedScene
-@export var muzzle_flash_duration: float = 0.1
-
-@export_group("Muzzle Effects")
-@export var muzzle_glow_enabled: bool = true
-@export var muzzle_glow_material: Texture2D
-
-@export_group("Sound")
-@export var fire_sound: AudioStream
-@export var reload_sound: AudioStream
-
-@export_group("Debug")
-@export var show_bullets: bool = false
-@export var bullet_lifetime: float = 3.0
-@export var bullet_scale: float = 0.5
-
-# =============================================================================
-# LIFECYCLE
-# =============================================================================
+var _is_shooting: bool = false
 
 func _ready() -> void:
-	# Set up auto-switching if desired
-	# switch_to_weapon("Rifle")
+	add_to_group("players")
+	_update_ammo()
 
+func _physics_process(delta: float) -> void:
+	if _fire_cooldown > 0.0:
+		_fire_cooldown -= delta
 
-func _process(_delta: float) -> void:
-	# Update fire rate timer
-	if _fire_rate_timer > 0:
-		_fire_rate_timer -= get_process_delta_time()
+func _update_ammo() -> void:
+	ammo_updated.emit(_current_weapon, _ammo[_current_weapon])
 
-
-# =============================================================================
-# WEAPON CONTROL
-# =============================================================================
-
-func switch_to_weapon(weapon_name: String) -> void:
-	"""Switch to a different weapon"""
-	var weapon_dict := _current_weapon
-	if weapon_name == "Pistol":
-		_current_weapon = Pistol
-	elif weapon_name == "Rifle":
-		_current_weapon = Rifle
-	else:
+func fire_weapon() -> void:
+	if _fire_cooldown > 0.0:
 		return
 	
-	# Reset state for new weapon
-	_current_magazine = _current_weapon["magazine_size"]
-	_current_ammo = _current_weapon["magazine_size"]
-	_fire_rate_timer = 0.0
-	_is_reloading = false
-	_last_shot_time = 0.0
-	_recoil_accumulation = Vector3.ZERO
-	
-	# Play switch sound (could be expanded)
-	print("[Weapon] Switched to: " + _current_weapon["name"])
-
-
-func get_current_weapon_name() -> String:
-	return _current_weapon["name"]
-
-
-func is_empty() -> bool:
-	"""Check if current weapon is out of ammo"""
-	return _current_ammo <= 0
-
-
-func reload() -> void:
-	"""Reload current weapon"""
-	if _is_reloading or _current_ammo >= _current_weapon["magazine_size"]:
+	if _ammo[_current_weapon] <= 0:
 		return
 	
-	_is_reloading = true
+	var weapon_settings: Dictionary = {
+		"pistol": {
+			"recoil": pistol_recoil,
+			"spread": pistol_spread,
+			"fire_rate": pistol_fire_rate,
+			"ammo": pistol_ammo
+		},
+		"rifle": {
+			"recoil": rifle_recoil,
+			"spread": rifle_spread,
+			"fire_rate": rifle_fire_rate,
+			"ammo": rifle_ammo
+		}
+	}
 	
-	if reload_sound:
-		# Play reload sound
-		pass  # Implementation depends on your audio system
+	var settings: Dictionary = weapon_settings[_current_weapon]
 	
-	# Simulate reload time
-	await get_tree().create_timer(_current_weapon["reload_time"]).timeout
+	_current_weapon = _current_weapon
+	_last_shot_time = Time.get_ticks_msec()
+	_fire_cooldown = settings["fire_rate"]
 	
-	_current_ammo = _current_weapon["magazine_size"]
-	_current_magazine = _current_weapon["magazine_size"]
-	_is_reloading = false
+	ammo[_current_weapon] -= 1
+	_update_ammo()
 	
-	weapon_reloaded.emit(_current_weapon["name"])
-
-
-func get_ammo_count() -> int:
-	return _current_ammo
-
-
-func get_magazine_count() -> int:
-	return _current_magazine
-
-
-# =============================================================================
-# FIRING
-# =============================================================================
-
-func shoot(input_direction: Vector3) -> void:
-	"""
-	Fire the current weapon.
+	var direction := get_shot_direction()
+	direction = direction + Vector3(randf() - 0.5, randf() - 0.5, randf() - 0.5) * settings["spread"]
+	direction = direction.normalized()
 	
-	@param input_direction: Direction from weapon to target
-	"""
-	var now: float = Time.get_ticks_msec() / 1000.0
+	apply_recoil(settings["recoil"])
 	
-	# Check fire rate
-	if _current_weapon["auto_fire"]:
-		# Auto-fire: shoot if enough time has passed
-		if now - _last_shot_time < _current_weapon["fire_rate"]:
-			return
-	else:
-		# Manual fire: always allow single shot
-		if now - _last_shot_time < _current_weapon["fire_rate"]:
-			return
+	shot_fired.emit(_current_weapon, direction)
 	
-	_fire_rate_timer = _current_weapon["fire_rate"]
-	_last_shot_time = now
+	_spawn_bullet(direction)
 	
-	# Calculate spread
-	var spread: float = _current_weapon["spread"]
-	var random_spread := Vector3.random_for_direction(spread)
+	print("Fired %s: direction=%s, ammo=%d" % [_current_weapon, direction, _ammo[_current_weapon]])
+
+func get_shot_direction() -> Vector3:
+	var camera := get_viewport().get_camera_3d()
+	if not camera:
+		return Vector3.RIGHT
 	
-	# Calculate recoil
-	_recoil_accumulation += Vector3(
-		_random_range(-_current_weapon["recoil_right"], _current_weapon["recoil_right"]),
-		_random_range(0, _current_weapon["recoil_up"] + random_spread.y),
-		_random_range(-_current_weapon["recoil_right"], _current_weapon["recoil_right"])
-	)
+	var mouse_position: Vector2 = Input.get_mouse_position()
+	var camera_transform := camera.global_transform
+	var camera_forward := camera_transform.basis.z
+	var camera_right := camera_transform.basis.x
+	var camera_up := camera_transform.basis.y
 	
-	# Calculate bullet velocity with spread
-	var bullet_direction: Vector3 = input_direction + random_spread
-	bullet_direction.normalize()
+	var normalized_pos := mouse_position.normalized()
 	
-	var muzzle_position := get_muzzle_position()
-	var muzzle_velocity := bullet_direction * _current_weapon["bullet_speed"]
+	var direction := camera_forward + camera_right * normalized_pos.x + camera_up * normalized_pos.y
+	return direction.normalized()
+
+func apply_recoil(recoil: Vector3) -> void:
+	if has_node("CharacterBody3D"):
+		var player := get_node("CharacterBody3D")
+		if player:
+			player.velocity += recoil
+
+func _spawn_bullet(direction: Vector3) -> void:
+	var bullet_body := CharacterBody3D.new()
+	bullet_body.position = global_position + Vector3.RIGHT * 0.5
 	
-	# Fire bullet
-	fire_bullet(muzzle_position, muzzle_velocity)
+	var bullet_velocity := direction * bullet_speed
+	bullet_body.velocity = bullet_velocity
 	
-	# Apply recoil
-	apply_recoil()
+	var bullet_life := 0.0
 	
-	# Play fire effects
-	play_fire_effects()
-
-
-func fire_bullet(position: Vector3, velocity: Vector3) -> void:
-	"""Fire a single bullet"""
-	bullet_fired.emit(position, velocity)
+	bullet_body.body_entered = func(body: Node3D) -> void:
+		queue_free()
 	
-	# Create bullet (visual)
-	create_bullet_visual(position, velocity)
+	get_tree().add_child(bullet_body)
 	
-	# Spawn bullet scene if available
-	if _has_bullet_scene():
-		var bullet := _current_bullet_scene().instantiate() as Node3D
-		add_child(bullet)
-		bullet.global_position = position
-		bullet.linear_velocity = velocity
-		bullet.scale = Vector3(bullet_scale, bullet_scale, bullet_scale)
-		bullet.add_to_group("bullets")
-		bullet.add_to_group("player_bullets")
-	
-	# Decrease ammo
-	_current_ammo -= _current_weapon["bullet_count"]
-	_current_magazine -= _current_weapon["bullet_count"]
-	
-	# Check if out of ammo
-	if _current_ammo <= 0:
-		weapon_empty.emit()
+	bullet_body.velocity = bullet_velocity
 
+func _switch_weapon() -> void:
+	var idx := available_weapons.find(_current_weapon)
+	if idx != -1 and idx + 1 < available_weapons.size():
+		_current_weapon = available_weapons[idx + 1]
+		ammo[_current_weapon] = _ammo[_current_weapon]
+		weapon_changed.emit(_current_weapon)
+		_update_ammo()
+		print("Switched to " + _current_weapon)
 
-# =============================================================================
-# BULLET VISUALS
-# =============================================================================
+func get_current_weapon() -> String:
+	return _current_weapon
 
-func _has_bullet_scene() -> bool:
-	return _current_bullet_scene() != null
+func get_current_ammo() -> int:
+	return _ammo[_current_weapon]
 
-
-func _current_bullet_scene() -> PackedScene:
-	return _bullet_scene
-
-
-@export var _bullet_scene: PackedScene = null
-
-
-func create_bullet_visual(position: Vector3, velocity: Vector3) -> void:
-	"""Create visual trail for bullet"""
-	if not _current_weapon["name"] == "Rifle":
-		return
-	
-	# Create trail (simple implementation)
-	var trail := Trail.new()
-	trail.max_age = bullet_lifetime
-	trail.add_point(position)
-	add_child(trail)
-
-
-# =============================================================================
-# RECOIL SYSTEM
-# =============================================================================
-
-func apply_recoil() -> void:
-	"""Apply recoil to weapon and camera"""
-	var recoil := _recoil_accumulation.normalized() * 50.0
-	_recoil_accumulation *= 0.8  # Decay
-	
-	# Apply to weapon
-	if has_node("WeaponMesh"):
-		var weapon := get_node("WeaponMesh") as Node3D
-		weapon.global_rotation.y += recoil.x
-		weapon.global_rotation.x += recoil.y
-	
-	# Apply to camera (smooth)
-	if get_parent().has_method("set_input"):
-		get_parent().set_input("recoil_x", recoil.x)
-		get_parent().set_input("recoil_y", recoil.y)
-
-
-# =============================================================================
-# FIRE EFFECTS
-# =============================================================================
-
-func play_fire_effects() -> void:
-	"""Play muzzle flash and other effects"""
-	
-	# Muzzle flash
-	if muzzle_flash_scene:
-		var flash := muzzle_flash_scene.instantiate() as Node3D
-		add_child(flash)
-		flash.global_transform = _get_muzzle_transform()
-		flash.queue_free()
-	
-	# Muzzle glow
-	if muzzle_glow_enabled and muzzle_glow_material:
-		if has_node("MuzzleGlow"):
-			var glow := get_node("MuzzleGlow") as Node3D
-			glow.material_override = muzzle_glow_material
-	
-	# Flash camera
-	if get_tree().get_root().has_method("flash_screen"):
-		get_tree().get_root().flash_screen(0.1)
-	
-	await get_tree().create_timer(muzzle_flash_duration).timeout
-
-
-func _get_muzzle_transform() -> Transform3D:
-	"""Get transform at muzzle position"""
-	if has_node("WeaponMesh"):
-		var weapon := get_node("WeaponMesh") as Node3D
-		return weapon.get_transform()
-	return Transform3D()
-
-
-# =============================================================================
-# INPUT HANDLING
-# =============================================================================
-
-func _input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			# Check for right-click weapon switching
-			if event.button_index == MOUSE_BUTTON_RIGHT:
-				# Cycle weapons (could be expanded)
-				var weapons := ["Pistol", "Rifle"]
-				var current_index := weapons.find(_current_weapon["name"])
-				var next_index := (current_index + 1) % weapons.size()
-				switch_to_weapon(weapons[next_index])
-			else:
-				shoot(Vector3.ZERO)  # Default direction
+func set_ammo(weapon: String, amount: int) -> void:
+	if weapon in _ammo:
+		ammo[weapon] = amount

@@ -69,11 +69,11 @@ sprint={
 
 [physics]
 
-common/physics_fps=300
 3d/physics_engine="GodotPhysics3D"
+common/physics_fps=300
 
 [rendering]
 
-quality/driver/driver_name="ForwardPlus"
 textures/vram_compression/import_etc2_astc=true
 environment/defaults/default_clear_color=Color(0.05, 0.05, 0.1, 1)
+quality/driver/driver_name="ForwardPlus"
