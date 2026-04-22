@@ -31,12 +31,14 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("place_checkpoint") and _is_in_preview_mode():
-		var pos := get_input_position()
-		_add_checkpoint(pos, "checkpoint_" + str(_checkpoint_counter))
+	if event.is_action_pressed("place_checkpoint") and _preview_mode:
+		var camera := get_viewport().get_camera_3d()
+		if camera:
+			var pos := camera.global_position + camera.global_transform.basis.z * -5.0  # 5 units in front
+			_add_checkpoint(pos, "checkpoint_" + str(_checkpoint_counter))
 	if event.is_action_pressed("restart_checkpoint"):
 		restart_from_checkpoint()
-	if event.is_action_pressed("toggle_preview"):
+	if event.is_action_pressed("checkpoint_preview"):
 		_toggle_preview_mode()
 
 func _is_in_preview_mode() -> bool:

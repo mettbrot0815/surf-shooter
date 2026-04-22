@@ -29,6 +29,10 @@ signal speed_updated(speed: float)
 @export var surf_max_velocity: float = 6000.0
 @export var ramp_deflection_strength: float = 1.0
 @export var min_ramp_angle: float = 10.0
+@export var max_ramp_angle: float = 60.0
+@export var ramp_speed_retention: float = 0.1
+@export var ramp_boost_factor: float = 0.8
+@export var water_surface_threshold: float = 50.0
 
 @export_group("Debug")
 @export var show_debug_overlay: bool = false
@@ -57,9 +61,24 @@ func _ready() -> void:
 	add_to_group("players")
 	_last_position = global_position
 
+	# Connect to deterministic physics server
+	var physics_server = DeterministicPhysicsServer
+	if physics_server:
+		physics_server.physics_tick_completed.connect(_on_physics_tick)
+
+	# Connect to timer for practice mode
+	var timer = SpeedrunTimer
+	if timer:
+		timer.enable_practice_mode()  # Enable by default for testing
+
+
+func _on_physics_tick(tick: int, delta: float) -> void:
+	_fixed_physics_update(delta)
+
 
 func _physics_process(delta: float) -> void:
-	_fixed_physics_update(delta)
+	# Physics is now handled by DeterministicPhysicsServer
+	pass
 
 
 func _fixed_physics_update(_delta: float) -> void:
@@ -83,21 +102,29 @@ func _fixed_physics_update(_delta: float) -> void:
 
 func _update_wish_direction() -> void:
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
-	
+
 	var camera := get_viewport().get_camera_3d()
 	if camera:
 		var forward := camera.global_transform.basis.z
 		var right := camera.global_transform.basis.x
-		
+
+		# Camera-relative movement
 		_wish_direction = (right * input_dir.x - forward * input_dir.y)
 		_wish_direction = Vector3(_wish_direction.x, 0, _wish_direction.z).normalized()
+
+		# In air, allow full 3D wish direction relative to camera
+		if not _is_on_ground and not _is_on_ramp:
+			var up := camera.global_transform.basis.y
+			var vertical_input := Input.get_axis("move_forward", "move_backward") * 0.5  # Reduced vertical influence
+			_wish_direction += up * vertical_input
+			_wish_direction = _wish_direction.normalized()
 	else:
 		_wish_direction = Vector3(input_dir.x, 0, -input_dir.y).normalized()
-	
+
 	var current_max := max_speed
 	if Input.is_action_pressed("sprint"):
 		current_max = sprint_speed
-	
+
 	_wish_speed = _wish_direction.length() * current_max
 
 
@@ -124,14 +151,17 @@ func _check_surface_state() -> void:
 
 
 func _check_water_surface() -> void:
-	var wave_system := WaveSystem.get_instance()
+	var wave_system = get_tree().get_first_node_in_group("wave_system")
 	if wave_system:
 		var water_height := wave_system.get_wave_height(global_position.x, global_position.z)
 		var height_diff := water_height - global_position.y
-		
-		if height_diff >= -50.0:
+
+		if height_diff >= -water_surface_threshold:
 			_is_in_water = true
-			_ground_normal = Vector3.UP
+			# Use dynamic surface normal from waves
+			_ground_normal = wave_system.get_surface_normal(global_position.x, global_position.z)
+			# Dynamic friction based on wave height
+			_surface_friction = wave_system.get_friction_at(global_position.x, global_position.z)
 			surf_state_changed.emit(_is_in_water, _is_on_ramp)
 
 
@@ -182,30 +212,50 @@ func _apply_surf_movement(delta: float) -> void:
 		surface_normal = _ramp_surface_normal
 	else:
 		surface_normal = _ground_normal
-	
-	var surf_direction := velocity.cross(surface_normal).cross(surface_normal).normalized()
-	if surf_direction == Vector3.ZERO:
+
+	# Calculate the component of velocity parallel to the surface
+	var velocity_parallel := velocity - velocity.dot(surface_normal) * surface_normal
+
+	# Calculate surf direction (perpendicular to surface normal)
+	var surf_direction := velocity_parallel.cross(surface_normal).cross(surface_normal).normalized()
+
+	# If no perpendicular component, use wish direction
+	if surf_direction == Vector3.ZERO or surf_direction.length() < 0.1:
 		surf_direction = _wish_direction
 		if surf_direction == Vector3.ZERO:
 			return
-	
+
+	# Project surf direction onto the surface plane
+	surf_direction = (surf_direction - surf_direction.dot(surface_normal) * surface_normal).normalized()
+
 	var current_speed := velocity.length()
 	var add_speed := surf_acceleration * delta
-	
+
+	# Apply acceleration in surf direction
 	velocity += surf_direction * add_speed * ramp_deflection_strength
-	
-	if _is_on_ramp:
-		var ramp_push := surface_normal * add_speed * 0.5
-		velocity += ramp_push
-	
+
+		if _is_on_ramp:
+			# Calculate ramp angle for speed gain
+			var ramp_angle := acos(surface_normal.dot(Vector3.UP))
+			var angle_factor := clamp(ramp_angle / deg_to_rad(max_ramp_angle), 0.0, 1.0)
+
+			# Ramp push based on angle and current speed
+			var ramp_push := surface_normal * add_speed * angle_factor * ramp_boost_factor
+			velocity += ramp_push
+
+			# Additional speed retention on ramps
+			if current_speed > 100.0:
+				var retention_factor := min(current_speed / 1000.0, ramp_speed_retention)
+				velocity += velocity_parallel * retention_factor * delta
+
 	var new_speed := velocity.length()
 	if new_speed > surf_max_velocity:
 		velocity = velocity.normalized() * surf_max_velocity
-	
+
 	_current_speed = velocity.length()
-	
+
 	if log_movement:
-		print("Surf: speed=%.1f normal=%s" % [_current_speed, surface_normal])
+		print("Surf: speed=%.1f normal=%s angle=%.1f" % [_current_speed, surface_normal, rad_to_deg(acos(surface_normal.dot(Vector3.UP)))])
 
 
 func _apply_friction(delta: float) -> void:
@@ -300,6 +350,10 @@ func reset_position(new_position: Vector3) -> void:
 	_total_distance_traveled = 0.0
 
 
+func add_velocity(velocity_addition: Vector3) -> void:
+	velocity += velocity_addition
+
+
 func _get_configuration_warnings() -> PackedStringArray:
 	var warnings := PackedStringArray()
 	
@@ -309,14 +363,30 @@ func _get_configuration_warnings() -> PackedStringArray:
 	return warnings
 
 
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("practice_mode"):
+		var timer = SpeedrunTimer
+		if timer:
+			if timer.is_practice_mode():
+				timer.disable_practice_mode()
+			else:
+				timer.enable_practice_mode()
+
+	if event.is_action_pressed("instant_restart"):
+		var timer = SpeedrunTimer
+		if timer and timer.is_practice_mode():
+			timer.instant_restart()
+			reset_position(Vector3(0, 5, 0))  # Reset to spawn
+
+
 func _draw() -> void:
 	if not show_debug_overlay:
 		return
-	
+
 	# Draw velocity vector
 	var vel_end := global_position + velocity.normalized() * min(velocity.length() * 0.1, 100.0)
 	draw_line(global_position, vel_end, Color.RED, 2.0)
-	
+
 	# Draw wish direction vector
 	var wish_end := global_position + _wish_direction * 30.0
 	draw_line(global_position, wish_end, Color.GREEN, 2.0)

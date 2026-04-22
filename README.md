@@ -4,29 +4,30 @@ A professional speedrun-focused high-skill momentum shooter combining buttery-sm
 
 ## Features
 
-- **CS:GO-Style Surf Physics**: Air acceleration, ramp deflection, momentum preservation with speed gain on proper angles.
-- **Deterministic Simulation**: 300 Hz physics for reproducible runs, state snapshots for replays.
-- **Weapon System**: Pistol and rifle with recoil affecting velocity, muzzle flash, reload, spread, visual models with sway/bob.
-- **Speedrun Tools**: Millisecond timer, splits, practice mode with instant restart, checkpoints with preview.
-- **Ghost Replays**: Record/playback at 300 Hz, variable speed, compression.
+- **CS:GO-Style Surf Physics**: Air acceleration with camera-relative wishdir, ramp deflection with speed gain on proper angles, momentum preservation.
+- **Deterministic Simulation**: 300 Hz physics for reproducible runs, full state snapshots for replays and rollback.
+- **Weapon System**: Pistol and rifle with recoil affecting player velocity, deterministic spread patterns, visual weapon models.
+- **Speedrun Tools**: Millisecond-precision timer, splits, practice mode with instant restart, checkpoints with preview and teleport.
+- **Ghost Replays**: Record/playback at 300 Hz using state snapshots, variable speed, compression.
 - **Water Interaction**: Dynamic friction and surface normals using Gerstner waves.
-- **UI/Polish**: Debug overlay, full HUD, main menu, audio hooks (surf whoosh, gunfire, impacts).
-- **Level**: Polished ramps, water plane with wave shader, moving targets.
+- **UI/Polish**: Debug overlay (velocity, speed, timer, physics), full HUD (timer, speedometer, ammo, weapon), responsive controls.
+- **Level**: Basic ramps, water plane, checkpoints - ready for expansion.
 
 ## Controls
 
-- **Movement**: WASD
+- **Movement**: WASD / Arrow Keys
 - **Jump**: Space
+- **Sprint**: Shift
 - **Shoot**: Left Mouse
 - **Reload**: R
 - **Weapon Switch**: 1 (Pistol), 2 (Rifle)
 - **Checkpoint Preview**: E
 - **Place Checkpoint**: Right Mouse (in preview)
-- **Remove Checkpoint**: Middle Mouse (in preview)
-- **Practice Mode**: Toggle in menu
-- **Instant Restart**: R (in practice)
-- **Ghost Playback**: G
-- **Debug Toggle**: F1
+- **Restart from Checkpoint**: Down Arrow / S
+- **Practice Mode Toggle**: P
+- **Instant Restart**: R (in practice mode)
+- **Ghost Playback**: G (if available)
+- **Debug Overlay**: F1 (velocity/speed), F2 (all debug)
 
 ## Installation
 

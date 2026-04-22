@@ -85,28 +85,53 @@ func get_rollback_buffer() -> Array:
 
 
 # =============================================================================
-# STATE ACCESS (Placeholder)
+# STATE ACCESS
 # =============================================================================
 
 func get_all_states() -> Dictionary:
 	"""
-	Get all current physics states.
-	Override this in your physics controller to capture:
-	- Position
-	- Rotation
-	- Velocity
-	- All component states
+	Get all current physics states from players and objects.
 	"""
-	return {}
+	var states: Dictionary = {
+		"tick": current_tick,
+		"timestamp": Time.get_ticks_msec(),
+		"players": {},
+		"objects": {}
+	}
+
+	# Collect player states
+	var players = get_tree().get_nodes_in_group("players")
+	for player in players:
+		if player.has_method("get_physics_state"):
+			var player_id = str(player.get_instance_id())
+			states["players"][player_id] = player.get_physics_state()
+
+	# Collect wave system state
+	var wave_system = get_tree().get_first_node_in_group("wave_system")
+	if wave_system and wave_system.has_method("get_wave_info"):
+		states["wave_system"] = wave_system.get_wave_info()
+
+	return states
 
 
 func restore_state(state: Dictionary) -> void:
 	"""
 	Restore physics state from a saved snapshot.
-	Override this in your physics controller to restore:
-	- Position
-	- Rotation
-	- Velocity
-	- All component states
 	"""
-	pass
+	# Restore tick
+	if state.has("tick"):
+		current_tick = state["tick"]
+
+	# Restore player states
+	if state.has("players"):
+		var players = get_tree().get_nodes_in_group("players")
+		for player in players:
+			var player_id = str(player.get_instance_id())
+			if state["players"].has(player_id) and player.has_method("apply_state"):
+				player.apply_state(state["players"][player_id])
+
+	# Restore wave system state
+	if state.has("wave_system"):
+		var wave_system = get_tree().get_first_node_in_group("wave_system")
+		if wave_system and wave_system.has_method("set_wave_info"):
+			wave_system.set_wave_info(state["wave_system"])
