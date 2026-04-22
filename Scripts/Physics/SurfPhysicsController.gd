@@ -295,6 +295,8 @@ func _apply_friction(delta: float) -> void:
 func _handle_jump() -> void:
 	if Input.is_action_just_pressed("jump") and (_is_on_ground or _is_on_ramp):
 		velocity.y = jump_force
+		# Audio placeholder
+		print("JUMP!")
 
 
 func _update_state_tracking() -> void:

@@ -123,6 +123,9 @@ func fire_weapon() -> void:
 
 	shot_fired.emit(_current_weapon, direction)
 
+	# Audio placeholder - play shoot sound
+	_play_shoot_sound()
+
 	_spawn_projectile(direction, settings)
 
 	if log_movement:
@@ -278,3 +281,7 @@ func _apply_weapon_offsets() -> void:
 	if weapon_mesh:
 		var base_position = Vector3(0.5, -0.2, -0.5)  # Default position
 		weapon_mesh.position = base_position + _sway_offset + _bob_offset
+
+func _play_shoot_sound() -> void:
+	# Audio placeholder - in real implementation, play audio stream
+	print("BANG! Shot fired with " + _current_weapon)
