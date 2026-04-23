@@ -1,0 +1,17 @@
+[sub_resource type="BoxMesh" id="BoxMesh_ramp"]
+size = Vector3(15, 2, 12)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ramp"]
+size = Vector3(15, 2, 12)
+
+[resource_local_script path="res://Scripts/Level/Ramp.gd" id="Ramp.gd"]
+
+[node name="Ramp" type="StaticBody3D"]
+
+[node name="RampMesh" type="MeshInstance3D" parent="Ramp"]
+mesh = SubResource("BoxMesh_ramp")
+
+[node name="RampCollision" type="CollisionShape3D" parent="Ramp"]
+shape = SubResource("BoxShape3D_ramp")
+
+[node name="RampScript" type="Ramp" parent="Ramp"]

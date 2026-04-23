@@ -1,15 +1,43 @@
-[gd_scene load_steps=3 format=3 uid="uid://b3v5k7m8n2p1q"]
+[sub_resource type="BoxMesh" id="BoxMesh_ramp1"]
+size = Vector3(15, 2, 12)
 
-[sub_resource type="BoxMesh" id="BoxMesh_ramp"]
-size = Vector3(20, 2, 10)
+[sub_resource type="BoxShape3D" id="BoxShape3D_ramp1"]
+size = Vector3(15, 2, 12)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_ramp"]
-size = Vector3(20, 2, 10)
+[sub_resource type="BoxMesh" id="BoxMesh_ramp2"]
+size = Vector3(18, 2, 14)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ramp2"]
+size = Vector3(18, 2, 14)
+
+[sub_resource type="BoxMesh" id="BoxMesh_ramp3"]
+size = Vector3(16, 2, 13)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ramp3"]
+size = Vector3(16, 2, 13)
+
+[sub_resource type="BoxMesh" id="BoxMesh_ramp4"]
+size = Vector3(20, 2, 15)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ramp4"]
+size = Vector3(20, 2, 15)
+
+[sub_resource type="BoxMesh" id="BoxMesh_ramp5"]
+size = Vector3(22, 2, 16)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ramp5"]
+size = Vector3(22, 2, 16)
+
+[resource_local_script path="res://Scripts/LevelController.gd" id="LevelController.gd"]
+[resource_local_script path="res://Scripts/Level/Ramp.gd" id="Ramp.gd"]
+[resource_local_script path="res://Scripts/EnemySpawner.gd" id="EnemySpawner.gd"]
+[resource_local_script path="res://Scripts/HazardArea.gd" id="HazardArea.gd"]
+[resource_local_script path="res://Scripts/Checkpoint.gd" id="Checkpoint.gd"]
+[resource_local_script path="res://Scripts/Obstacle.gd" id="Obstacle.gd"]
 
 [node name="Level" type="Node3D"]
 
-[node name="WaterPlane" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5, 0)
+[node name="WaterPlane" type="MeshInstance3D" parent="Level"]
 mesh = PlaneMesh.new()
 mesh.size = Vector2(200, 200)
 mesh.subdivide_depth = 50
@@ -18,53 +46,135 @@ material = StandardMaterial3D.new()
 material.albedo_color = Color(0.1, 0.3, 0.8, 0.8)
 material.transparency = 1
 
-[node name="Ramp1" type="StaticBody3D" parent="."]
-transform = Transform3D(0.866025, 0.5, 0, -0.5, 0.866025, 0, 0, 0, 1, 0, 0, 20)
+[node name="Ramp1" type="StaticBody3D" parent="Level"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("BoxMesh_ramp1")
+collision_shape = SubResource("BoxShape3D_ramp1")
+mesh_instance_3d = MeshInstance3D.new()
+mesh_instance_3d.mesh = mesh
+mesh_instance_3d.transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+add_child(mesh_instance_3d)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Ramp1"]
-mesh = SubResource("BoxMesh_ramp")
+[node name="Ramp1Script" type="Ramp" parent="Ramp1"]
+ramp_name = "Ramp 1"
+ramp_angle = 10
+checkpoint_id = 1
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Ramp1"]
-shape = SubResource("BoxShape3D_ramp")
+[node name="Ramp2" type="StaticBody3D" parent="Level"]
+transform = Transform3D(0.965926, 0.258819, 0, 0, 1, 0, 0, 0, 1, 30, 0, 0)
+mesh = SubResource("BoxMesh_ramp2")
+collision_shape = SubResource("BoxShape3D_ramp2")
+mesh_instance_3d = MeshInstance3D.new()
+mesh_instance_3d.mesh = mesh
+mesh_instance_3d.transform = Transform3D(0.965926, 0.258819, 0, 0, 1, 0, 0, 0, 1, 30, 0, 0)
+add_child(mesh_instance_3d)
 
-[node name="Ramp2" type="StaticBody3D" parent="."]
-transform = Transform3D(0.866025, -0.5, 0, 0.5, 0.866025, 0, 0, 0, 1, 30, 0, 10)
+[node name="Ramp2Script" type="Ramp" parent="Ramp2"]
+ramp_name = "Ramp 2"
+ramp_angle = 20
+checkpoint_id = 2
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Ramp2"]
-mesh = SubResource("BoxMesh_ramp")
+[node name="Ramp3" type="StaticBody3D" parent="Level"]
+transform = Transform3D(0.866025, 0.5, 0, 0, 1, 0, 0, 0, 1, 60, 0, 0)
+mesh = SubResource("BoxMesh_ramp3")
+collision_shape = SubResource("BoxShape3D_ramp3")
+mesh_instance_3d = MeshInstance3D.new()
+mesh_instance_3d.mesh = mesh
+mesh_instance_3d.transform = Transform3D(0.866025, 0.5, 0, 0, 1, 0, 0, 0, 1, 60, 0, 0)
+add_child(mesh_instance_3d)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Ramp2"]
-shape = SubResource("BoxShape3D_ramp")
+[node name="Ramp3Script" type="Ramp" parent="Ramp3"]
+ramp_name = "Ramp 3"
+ramp_angle = 30
+checkpoint_id = 3
 
-[node name="Ramp3" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, -20, 0, 0)
+[node name="Ramp4" type="StaticBody3D" parent="Level"]
+transform = Transform3D(0.707107, 0.707107, 0, 0, 1, 0, 0, 0, 1, 90, 0, 0)
+mesh = SubResource("BoxMesh_ramp4")
+collision_shape = SubResource("BoxShape3D_ramp4")
+mesh_instance_3d = MeshInstance3D.new()
+mesh_instance_3d.mesh = mesh
+mesh_instance_3d.transform = Transform3D(0.707107, 0.707107, 0, 0, 1, 0, 0, 0, 1, 90, 0, 0)
+add_child(mesh_instance_3d)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Ramp3"]
-mesh = SubResource("BoxMesh_ramp")
+[node name="Ramp4Script" type="Ramp" parent="Ramp4"]
+ramp_name = "Ramp 4"
+ramp_angle = 45
+checkpoint_id = 4
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Ramp3"]
-shape = SubResource("BoxShape3D_ramp")
+[node name="Ramp5" type="StaticBody3D" parent="Level"]
+transform = Transform3D(0.5, 0.866025, 0, 0, 1, 0, 0, 0, 1, 120, 0, 0)
+mesh = SubResource("BoxMesh_ramp5")
+collision_shape = SubResource("BoxShape3D_ramp5")
+mesh_instance_3d = MeshInstance3D.new()
+mesh_instance_3d.mesh = mesh
+mesh_instance_3d.transform = Transform3D(0.5, 0.866025, 0, 0, 1, 0, 0, 0, 1, 120, 0, 0)
+add_child(mesh_instance_3d)
 
-[node name="Ramp4" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 10, 0)
+[node name="Ramp5Script" type="Ramp" parent="Ramp5"]
+ramp_name = "Ramp 5"
+ramp_angle = 60
+checkpoint_id = 5
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Ramp4"]
-mesh = SubResource("BoxMesh_ramp")
+[node name="EnemySpawner" type="EnemySpawner" parent="Level"]
+position = Vector3(0, 2, 0)
+enemy_count = 3
+target_types = ["enemy", "target", "practice"]
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Ramp4"]
-shape = SubResource("BoxShape3D_ramp")
+[node name="Checkpoint1" type="Checkpoint" parent="Level"]
+position = Vector3(0, 5, 0)
+checkpoint_id = 1
 
-[node name="Ramp5" type="StaticBody3D" parent="."]
-transform = Transform3D(0.965926, 0.258819, 0, 0.258819, 0.965926, 0, 0, 0, 1, 40, 0, -10)
+[node name="Checkpoint2" type="Checkpoint" parent="Level"]
+position = Vector3(10, 5, 20)
+checkpoint_id = 2
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Ramp5"]
-mesh = SubResource("BoxMesh_ramp")
+[node name="Checkpoint3" type="Checkpoint" parent="Level"]
+position = Vector3(-15, 5, 35)
+checkpoint_id = 3
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Ramp5"]
-shape = SubResource("BoxShape3D_ramp")
+[node name="Checkpoint4" type="Checkpoint" parent="Level"]
+position = Vector3(10, 5, 60)
+checkpoint_id = 4
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
-light_energy = 1.5
-light_angular_distance = 0.1
-shadow_enabled = true
+[node name="Checkpoint5" type="Checkpoint" parent="Level"]
+position = Vector3(10, 5, 90)
+checkpoint_id = 5
+
+[node name="Obstacle1" type="Obstacle" parent="Level"]
+position = Vector3(-30, 2, -10)
+obstacle_type = "rock"
+difficulty = 5
+
+[node name="Obstacle2" type="Obstacle" parent="Level"]
+position = Vector3(40, 2, 25)
+obstacle_type = "barrier"
+difficulty = 3
+
+[node name="Obstacle3" type="Obstacle" parent="Level"]
+position = Vector3(10, 2, 60)
+obstacle_type = "crate"
+difficulty = 2
+
+[node name="HazardArea1" type="HazardArea" parent="Level"]
+position = Vector3(-40, 0, -15)
+hazard_type = "water"
+damage_per_second = 0.0
+collision_layer = 2
+collision_mask = 4
+
+[node name="HazardArea2" type="HazardArea" parent="Level"]
+position = Vector3(20, 0, 40)
+hazard_type = "ice"
+damage_per_second = 0.0
+hazard_strength = 1.5
+collision_layer = 2
+collision_mask = 4
+
+[node name="CheckpointGroup" type="Group" parent="Level"]
+
+[node name="ObstacleGroup" type="Group" parent="Level"]
+
+[node name="HazardGroup" type="Group" parent="Level"]
+
+[node name="RampGroup" type="Group" parent="Level"]

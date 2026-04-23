@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://hud_scene"]
+[gd_scene load_steps=3 format=3 uid="uid://hud_scene"]
 
 [ext_resource type="Script" path="res://Scripts/UI/HUD.gd" id="1"]
 
@@ -46,6 +46,22 @@ offset_top = -50.0
 offset_right = 200.0
 offset_bottom = -20.0
 text = "Weapon: Pistol"
+
+[node name="CheckpointLabel" type="Label" parent="."]
+offset_left = 20.0
+offset_top = -30.0
+offset_right = 200.0
+offset_bottom = -2.0
+text = "Checkpoint: 0/3"
+horizontal_alignment = 2
+
+[node name="TargetLabel" type="Label" parent="."]
+offset_left = 20.0
+offset_top = 10.0
+offset_right = 200.0
+offset_bottom = -2.0
+text = "Targets: 3"
+horizontal_alignment = 2
 
 [node name="Crosshair" type="Sprite2D" parent="."]
 offset_left = 0
