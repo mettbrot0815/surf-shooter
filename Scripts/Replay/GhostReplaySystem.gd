@@ -19,6 +19,8 @@ signal replay_playback_started()
 signal replay_playback_finished()
 signal replay_preview_available(filename: String, preview_data: Dictionary)
 signal replay_saved(filename: String)
+signal replay_preview_started(speed: float)
+signal replay_preview_finished()
 
 # =============================================================================
 # CONFIGURATION
@@ -34,6 +36,7 @@ signal replay_saved(filename: String)
 @export var playback_speed_multiplier: float = 1.0  ## Current playback speed
 @export var max_playback_speed: float = 3.0   ## Max allowed speed (1x normal, 3x fast)
 @export var preview_duration: float = 5.0   ## Preview duration before full playback
+@export var preview_speeds: Array = [0.5, 1.0, 2.0]  ## Available preview speeds
 
 @export_group("Compression")
 @export var compress_inputs: bool = true  ## Compress input data
@@ -62,6 +65,8 @@ var _preview_tick: int = 0
 var _buffer_time: float = 0.0
 var _recording_start_time: float = 0.0
 var _playback_position: float = 0.0
+var _preview_mode: bool = false
+var _preview_speed_index: int = 1  ## Index into preview_speeds array
 
 # =============================================================================
 # LIFECYCLE
@@ -81,18 +86,54 @@ func _process(_delta: float) -> void:
 		if _preview_timer <= 0:
 			_start_full_playback()
 
-	# Handle playback
+	# Handle playback and preview
 	if _is_playing and _replay_data.has("ticks"):
 		var ticks: Array = _replay_data["ticks"]
-		if _preview_tick < ticks.size():
-			var tick_data: Dictionary = ticks[_preview_tick]
-			# Restore state for this tick
-			if _replay_system and tick_data.has("state"):
-				_replay_system.restore_state(tick_data["state"])
-
-			_preview_tick += 1
+		
+		if _is_previewing:
+			# Preview mode with frame interpolation
+			if _preview_data.has("positions") and _preview_data["positions"].size() > 0:
+				# Interpolate between frames for smooth 60Hz playback
+				var current_tick := _preview_data.get("tick", 0)
+				var next_pos := _preview_data["positions"][current_tick + 1] if current_tick + 1 < _preview_data["positions"].size() else _preview_data["positions"][current_tick]
+				
+				# Interpolate position for smooth movement
+				var player: CharacterBody3D = get_tree().get_first_node_in_group("players")
+				if player:
+					# Simple interpolation for smooth 60Hz playback
+					var lerp_factor := min(_delta * 60, 0.1)
+					var target_pos := _preview_position.lerp(next_pos, lerp_factor)
+					var target_rot := _preview_rotation.slerp(_preview_data["rotations"][current_tick + 1] if current_tick + 1 < _preview_data["rotations"].size() else _preview_rotation, lerp_factor)
+					var target_vel := _preview_velocity.lerp(_preview_data["velocities"][current_tick + 1] if current_tick + 1 < _preview_data["velocities"].size() else _preview_velocity, lerp_factor)
+					
+					player.global_position = target_pos
+					player.rotation = target_rot
+					player.velocity = target_vel
+					
+					_preview_tick += 1
+			else:
+				# No preview data, use normal playback
+				if _preview_tick < ticks.size():
+					var tick_data: Dictionary = ticks[_preview_tick]
+					if _replay_system and tick_data.has("state"):
+						_replay_system.restore_state(tick_data["state"])
+					_preview_tick += 1
+				else:
+					_is_playing = false
+					_is_previewing = false
+					stop_playback()
 		else:
-			stop_playback()
+			# Normal playback
+			if _preview_tick < ticks.size():
+				var tick_data: Dictionary = ticks[_preview_tick]
+				# Restore state for this tick
+				if _replay_system and tick_data.has("state"):
+					_replay_system.restore_state(tick_data["state"])
+
+				_preview_tick += 1
+			else:
+				_is_playing = false
+				stop_playback()
 
 
 # =============================================================================
@@ -287,8 +328,56 @@ func set_playback_speed(speed: float) -> void:
 
 
 # =============================================================================
-# PREVIEW
+# PREVIEW SYSTEM
 # =============================================================================
+
+## Preview mode allows viewing recorded segments at variable speeds with smooth playback
+## Uses frame interpolation for smooth 60Hz playback and auto-switches to full playback after timeout
+
+
+func enter_preview_mode(filename: String = "", speed_index: int = 1) -> void:
+	"""Enter preview mode with optional replay file and speed"""
+	var speed: float = preview_speeds[speed_index] if speed_index < preview_speeds.size() else preview_speeds[1]
+	_playback_speed_multiplier = speed
+	_preview_mode = true
+	_is_previewing = true
+	_preview_timer = preview_duration
+	_preview_speed_index = speed_index
+	
+	# Load replay if filename provided
+	if not filename.is_empty():
+		preview_replay(filename)
+	else:
+		var last_file: String = get_last_filename()
+		if not last_file.is_empty():
+			preview_replay(last_file)
+		
+		replay_preview_started.emit(_playback_speed_multiplier)
+
+
+func exit_preview_mode() -> void:
+	"""Exit preview mode and reset"""
+	_preview_mode = false
+	_is_previewing = false
+	_preview_data.clear()
+	_preview_timer = 0.0
+	_preview_tick = 0
+	replay_preview_finished.emit()
+
+
+func set_preview_speed(new_speed: float) -> void:
+	"""Set preview playback speed"""
+	var speed_index: int = -1
+	for i in range(preview_speeds.size()):
+		if abs(preview_speeds[i] - new_speed) < 0.01:
+			speed_index = i
+			break
+	
+	if speed_index >= 0 and speed_index < preview_speeds.size():
+		_preview_speed_index = speed_index
+		_playback_speed_multiplier = preview_speeds[speed_index]
+		replay_preview_started.emit(_playback_speed_multiplier)
+
 
 func preview_replay(filename: String) -> void:
 	"""Preview replay before playing"""
@@ -338,9 +427,7 @@ func start_preview() -> void:
 	if filename == "":
 		return
 	
-	preview_replay(filename)
-	_is_previewing = true
-	_preview_timer = preview_duration
+	enter_preview_mode(filename)
 	
 	# Load and display preview
 	if _preview_data.has("positions") and _preview_data["positions"].size() > 0:
@@ -425,9 +512,14 @@ func _draw() -> void:
 	if _is_previewing:
 		color = Color.CYAN
 	
+	var status_text := "Recording" if _is_recording else "Playing" if _is_playing else "Preview" if _is_previewing else "Ready"
+	var speed_info := ""
+	if _is_previewing:
+		speed_info = " @ " + str(_playback_speed_multiplier) + "x"
+	
 	draw_string(
 		_get_local_transform(),
-		"Ghost: " + str(color) + str(color) + "Recording" if _is_recording else str(color) + str(color) + "Playing" if _is_playing else str(color) + str(color) + "Preview" if _is_previewing else str(color) + str(color) + "Ready",
+		"Ghost: " + str(color) + str(color) + status_info + color,
 		Vector2(10, 10),
 		Vector2.ONE,
 		0,
@@ -457,5 +549,18 @@ func _draw() -> void:
 			Vector2.ONE,
 			0,
 			Color.YELLOW,
+			Size2.ONE
+		)
+	
+	# Draw preview info
+	if _is_previewing:
+		var preview_info := "Preview: " + str(_playback_speed_multiplier) + "x, Timer: " + str(_preview_timer) + "s"
+		draw_string(
+			_get_local_transform(),
+			preview_info,
+			Vector2(10, 70),
+			Vector2.ONE,
+			0,
+			Color.CYAN,
 			Size2.ONE
 		)
