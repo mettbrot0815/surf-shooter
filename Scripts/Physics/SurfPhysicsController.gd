@@ -71,6 +71,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_fixed_physics_update(delta)
+	_process(delta)  # Process shake effects
 
 
 func _fixed_physics_update(_delta: float) -> void:
@@ -122,6 +123,7 @@ func _update_wish_direction() -> void:
 
 func _check_surface_state() -> void:
 	var was_on_ground := _is_on_ground
+	var was_on_ramp := _is_on_ramp
 	_is_on_ground = is_on_floor()
 	_is_on_ramp = false
 	_is_in_water = false
@@ -136,25 +138,49 @@ func _check_surface_state() -> void:
 			surf_state_changed.emit(_is_in_water, _is_on_ramp)
 		elif was_on_ground and not _is_on_ramp:
 			surf_state_changed.emit(_is_in_water, _is_on_ramp)
+		elif was_on_ramp and not _is_on_ramp:
+			surf_state_changed.emit(_is_in_water, _is_on_ramp)
 	else:
 		_check_water_surface()
 	
-	_surface_friction = 1.0
+	# Reset friction based on surface type
+	if _is_on_ground:
+		_surface_friction = ground_friction * 0.5  # Reduced ground friction for better feel
+	elif _is_on_ramp:
+		_surface_friction = 0.3  # Very low friction on ramps for speed
+	else:
+		_surface_friction = 1.0
 
 
 func _check_water_surface() -> void:
 	var wave_system = get_tree().get_first_node_in_group("wave_system")
+	var surface_normal = Vector3.UP
+	var wave_height = water_level
+	
 	if wave_system:
 		var water_height := wave_system.get_wave_height(global_position.x, global_position.z)
 		var depth := global_position.y - water_height
-
+		
 		if depth <= water_surface_threshold:  # Player is at or below water surface
 			_is_in_water = true
-			# Use dynamic surface normal from waves
 			_ground_normal = wave_system.get_surface_normal(global_position.x, global_position.z)
 			# Dynamic friction based on depth
-			_surface_friction = wave_system.get_friction_at(global_position.x, global_position.z)
+			var friction = wave_system.get_friction_at(global_position.x, global_position.z)
+			_surface_friction = friction
 			surf_state_changed.emit(_is_in_water, _is_on_ramp)
+		else:
+			# Get surface normal from nearest wave for smooth transition
+			var nearest_normal = wave_system.get_surface_normal(global_position.x, global_position.z)
+			# Blend with UP for smoother water surface
+			var blend_factor = clamp(1.0 - depth / water_surface_threshold * 2.0, 0.0, 1.0)
+			_ground_normal = (nearest_normal * blend_factor + Vector3.UP * (1.0 - blend_factor)).normalized()
+			surface_normal = _ground_normal
+			_is_in_water = false
+			_is_on_ramp = false
+			surf_state_changed.emit(_is_in_water, _is_on_ramp)
+	else:
+		_ground_normal = Vector3.UP
+		surface_normal = Vector3.UP
 
 
 func _apply_ground_movement(delta: float) -> void:
@@ -204,11 +230,11 @@ func _apply_surf_movement(delta: float) -> void:
 		surface_normal = _ramp_surface_normal
 	else:
 		surface_normal = _ground_normal
-
+	
 	# CS:GO style surf physics
 	# Deflect velocity along the surface normal
 	var velocity_dot_normal := velocity.dot(surface_normal)
-
+	
 	# Only deflect if moving towards the surface
 	if velocity_dot_normal < 0:
 		# Calculate deflection: reflect velocity off surface
@@ -216,44 +242,52 @@ func _apply_surf_movement(delta: float) -> void:
 		# Apply some friction/energy loss
 		var deflection_strength := 0.98  # Slight energy loss
 		velocity = deflection * deflection_strength
-
+	
 	# Calculate surf direction (perpendicular component)
 	var velocity_parallel := velocity - velocity.dot(surface_normal) * surface_normal
 	var surf_direction := velocity_parallel.cross(surface_normal).cross(surface_normal).normalized()
-
+	
 	# If no perpendicular component, use wish direction projected onto surface
 	if surf_direction == Vector3.ZERO or surf_direction.length() < 0.1:
 		surf_direction = (_wish_direction - _wish_direction.dot(surface_normal) * surface_normal).normalized()
 		if surf_direction == Vector3.ZERO:
 			return
-
+	
 	var current_speed := velocity.length()
 	var add_speed := surf_acceleration * delta
-
+	
 	# Apply acceleration in surf direction
 	velocity += surf_direction * add_speed
-
+	
 	# Ramp speed gain based on angle
 	if _is_on_ramp:
 		var ramp_angle := acos(surface_normal.dot(Vector3.UP))
 		var angle_factor := clamp(ramp_angle / deg_to_rad(max_ramp_angle), 0.0, 1.0)
-
+		
 		# Optimal ramp surfing gives speed boost
 		if angle_factor > 0.3:  # Sweet spot angles
 			var speed_boost := current_speed * angle_factor * ramp_boost_factor * delta
 			velocity += surf_direction * speed_boost
-
+		
 		# Speed retention for high speeds
 		if current_speed > 200.0:
 			var retention := min(current_speed * ramp_speed_retention * delta, current_speed * 0.1)
 			velocity += velocity_parallel.normalized() * retention
-
+	
 	var new_speed := velocity.length()
 	if new_speed > surf_max_velocity:
 		velocity = velocity.normalized() * surf_max_velocity
+	
+_current_speed = velocity.length()
 
-	_current_speed = velocity.length()
+	# Play surf whoosh for high-speed surfing
+	if _current_speed > 200:
+		_play_surf_whoosh()
+		# Add subtle shake for high-speed surfing
+		if _current_speed > 300:
+			_apply_shake(0.1, _current_speed / 600.0)
 
+	# Log surf physics info for debugging
 	if log_movement:
 		print("Surf: speed=%.1f normal=%s angle=%.1f deflection=%.3f" % [_current_speed, surface_normal, rad_to_deg(acos(surface_normal.dot(Vector3.UP))), velocity_dot_normal])
 
@@ -295,8 +329,12 @@ func _apply_friction(delta: float) -> void:
 func _handle_jump() -> void:
 	if Input.is_action_just_pressed("jump") and (_is_on_ground or _is_on_ramp):
 		velocity.y = jump_force
-		# Audio placeholder
-		print("JUMP!")
+		# Audio placeholder - play jump sound
+		_play_jump_sound()
+		# Visual feedback - screen shake
+		_apply_shake(0.5, 0.1)
+		# Add jump particle effect
+		_spawn_jump_particles()
 
 
 func _update_state_tracking() -> void:
@@ -326,7 +364,11 @@ func get_physics_state() -> Dictionary:
 		"ground_normal": _ground_normal,
 		"current_speed": _current_speed,
 		"wish_direction": _wish_direction,
-		"wish_speed": _wish_speed
+		"wish_speed": _wish_speed,
+		# Audio/Visual feedback status
+		"shaking": shake_data is not null and shake_data.get("intensity", 0) > 0,
+		"shaking_intensity": shake_data.get("intensity", 0) if shake_data else 0,
+		"surfx_whooshing": _current_speed > 200
 	}
 
 
@@ -392,3 +434,79 @@ func _draw() -> void:
 	# Draw wish direction vector
 	var wish_end := global_position + _wish_direction * 30.0
 	draw_line(global_position, wish_end, Color.GREEN, 2.0)
+
+# =============================================================================
+# AUDIO & VISUAL FEEDBACK
+# =============================================================================
+
+func _play_jump_sound() -> void:
+	# TODO: Replace with actual audio file
+	# var audio = AudioStreamPlayer.new()
+	# audio.stream = load("res://audio/jump.mp3")
+	# audio.play()
+	print("AUDIO: Play jump sound...")
+
+func _play_shoot_sound() -> void:
+	# TODO: Replace with actual audio file
+	print("AUDIO: Play shoot sound...")
+
+func _apply_shake(duration: float, intensity: float) -> void:
+	# Visual screen shake effect
+	var shake_intensity := 20.0 * intensity
+	var shake_duration := duration
+	
+	# Store shake data for processing
+	shake_data = {
+		"intensity": shake_intensity,
+		"duration": shake_duration,
+		"time": Time.get_ticks_msec()
+	}
+
+func _spawn_jump_particles() -> void:
+	# TODO: Add particle system for jump effect
+	print("VISUAL: Spawn jump particles...")
+
+func _spawn_shoot_particles() -> void:
+	# TODO: Add particle system for muzzle flash and impact
+	print("VISUAL: Spawn shoot particles...")
+
+func _play_surf_whoosh() -> void:
+	# TODO: Play surf whoosh sound based on speed
+	if _current_speed > 100:
+		# Higher speed = more intense whoosh
+		print("AUDIO: Play surf whoosh (speed: %.1f u/s)" % _current_speed)
+
+func _spawn_impact_sound() -> void:
+	# TODO: Play impact sound based on impact surface
+	print("AUDIO: Play impact sound...")
+
+# =============================================================================
+# SHAKE EFFECT
+# =============================================================================
+
+var shake_data: Dictionary = null
+
+func _process(delta: float) -> void:
+	# Process shake effect
+	if shake_data:
+		var elapsed := (Time.get_ticks_msec() - shake_data["time"]) / 1000.0
+		if elapsed < shake_data["duration"]:
+			var progress := 1.0 - elapsed / shake_data["duration"]
+			# Smooth decay
+			shake_intensity = shake_data["intensity"] * pow(progress, 3)
+			if shake_intensity > 0.1:
+				_apply_camera_shake(shake_intensity)
+		else:
+			shake_data = null
+
+# =============================================================================
+# CAMERA SHAKE
+# =============================================================================
+
+func _apply_camera_shake(intensity: float) -> void:
+	if get_viewport():
+		var viewport = get_viewport()
+		if viewport.get_camera_3d():
+			var shake_x := randf() * intensity - intensity / 2.0
+			var shake_y := randf() * intensity - intensity / 2.0
+			get_viewport().position = Vector2(shake_x, shake_y)

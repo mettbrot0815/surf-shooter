@@ -45,6 +45,24 @@ mesh = SubResource("BoxMesh_ramp")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Ramp3"]
 shape = SubResource("BoxShape3D_ramp")
 
+[node name="Ramp4" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 10, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ramp4"]
+mesh = SubResource("BoxMesh_ramp")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ramp4"]
+shape = SubResource("BoxShape3D_ramp")
+
+[node name="Ramp5" type="StaticBody3D" parent="."]
+transform = Transform3D(0.965926, 0.258819, 0, 0.258819, 0.965926, 0, 0, 0, 1, 40, 0, -10)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ramp5"]
+mesh = SubResource("BoxMesh_ramp")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ramp5"]
+shape = SubResource("BoxShape3D_ramp")
+
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 10, 0)
 light_energy = 1.5

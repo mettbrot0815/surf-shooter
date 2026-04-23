@@ -263,6 +263,12 @@ func _update_weapon_sway(delta: float) -> void:
 	_mouse_delta = _mouse_delta.lerp(mouse_motion, sway_speed * delta)
 	_sway_offset.x = -_mouse_delta.x * sway_intensity
 	_sway_offset.y = _mouse_delta.y * sway_intensity
+	
+	# Add subtle sway when standing still
+	if _is_on_ground:
+		var time = Time.get_ticks_msec() / 1000.0
+		_sway_offset.x += sin(time * 2.0) * 0.02 * sway_intensity
+		_sway_offset.y += cos(time * 2.0) * 0.02 * sway_intensity
 
 func _update_weapon_bob(delta: float) -> void:
 	var player = get_tree().get_first_node_in_group("players")
@@ -275,12 +281,29 @@ func _update_weapon_bob(delta: float) -> void:
 			_bob_offset.x = cos(_bob_time * bob_frequency * 0.5) * bob_intensity * 0.5
 		else:
 			_bob_offset = _bob_offset.lerp(Vector3.ZERO, delta * 5.0)
+	else:
+		# Add bob even when not moving for better feel
+		_bob_time += delta * 3.0
+		var bob_amount = sin(_bob_time * bob_frequency) * bob_intensity * 0.3
+		_bob_offset.y = bob_amount
+		_bob_offset.x = cos(_bob_time * bob_frequency * 0.5) * bob_intensity * 0.2
 
 func _apply_weapon_offsets() -> void:
+	# Apply sway and bob offsets to weapon
 	var weapon_mesh = $WeaponMesh
 	if weapon_mesh:
 		var base_position = Vector3(0.5, -0.2, -0.5)  # Default position
+		# Apply offsets with damping for smoothness
 		weapon_mesh.position = base_position + _sway_offset + _bob_offset
+		
+		# Add slight weapon sway rotation
+		if weapon_mesh.has_method("set_rotation"):
+			weapon_mesh.set_rotation(
+				Quaternion.IDENTITY.slerp(
+					Quaternion.IDENTITY.slerp(Quaternion.IDENTITY, 0.001, 1.0)
+				),
+				Vector3(0.0, 0.0, _mouse_delta.y * 0.01)
+			)
 
 func _play_shoot_sound() -> void:
 	# Audio placeholder - in real implementation, play audio stream

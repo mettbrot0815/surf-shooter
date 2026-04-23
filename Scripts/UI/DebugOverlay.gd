@@ -18,7 +18,7 @@ var _wave_system: WaveSystem = null
 var _timer: SpeedrunTimer = null
 var _physics_server: DeterministicPhysicsServer = null
 var _checkpoint_system: CheckpointSystem = null
-
+var _player: SurfPhysicsController = null
 # =============================================================================
 # CONNECTION
 # =============================================================================
@@ -57,11 +57,25 @@ func _process(_delta: float) -> void:
 func _update_player_info(player: Node3D) -> void:
 	if not player.has_method("get_physics_state"):
 		return
-	
+
 	var state := player.get_physics_state()
 	velocity_label.text = "Velocity: " + str(state.get("velocity", Vector3.ZERO))
 	speed_label.text = "Speed: " + str(state.get("current_speed", 0)) + " m/s"
 	position_label.text = "Pos: " + str(state.get("position", Vector3.ZERO))
+
+	# Show surface info
+	if state.has("on_ramp") and state["on_ramp"]:
+		velocity_label.text += " | OnRamp"
+	if state.has("on_water") and state["on_water"]:
+		velocity_label.text += " | OnWater"
+
+	# Show audio/visual feedback status
+	if state.has("surfx_whooshing"):
+		velocity_label.text += " | Whoosh!"
+	if state.has("shaking"):
+		velocity_label.text += " | Shaking"
+	if state.has("shaking_intensity") and state["shaking_intensity"] > 0.5:
+		velocity_label.text += " [!]"  # Strong shake warning
 
 
 func _update_wave_info() -> void:
@@ -76,7 +90,8 @@ func _update_timer_info() -> void:
 
 func _update_physics_info() -> void:
 	if _physics_server:
-		physics_label.text = "Tick: " + str(_physics_server.current_tick)
+		var fps = 1.0 / (_physics_server.current_tick - 1) if _physics_server.current_tick > 1 else 0
+		physics_label.text = "Tick: " + str(_physics_server.current_tick) + " | FPS: " + str(int(fps)) + " | Delta: " + str(_physics_server.delta)
 
 func _update_ghost_info() -> void:
 	var ghost = GhostReplaySystem

@@ -98,7 +98,8 @@ func get_all_states() -> Dictionary:
 		"tick": current_tick,
 		"timestamp": Time.get_ticks_msec(),
 		"players": {},
-		"objects": {}
+		"objects": {},
+		"wave_system": {}
 	}
 
 	# Collect player states
@@ -111,7 +112,9 @@ func get_all_states() -> Dictionary:
 	# Collect wave system state
 	var wave_system = get_tree().get_first_node_in_group("wave_system")
 	if wave_system and wave_system.has_method("get_wave_info"):
-		states["wave_system"] = wave_system.get_wave_info()
+		var wave_info = wave_system.get_wave_info()
+		wave_info["timestamp"] = Time.get_ticks_msec()
+		states["wave_system"] = wave_info
 
 	return states
 

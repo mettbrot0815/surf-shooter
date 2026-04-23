@@ -118,6 +118,10 @@ func get_friction_at(x: float, z: float) -> float:
 		# Less friction when above water (air resistance)
 		friction = default_friction * 0.8
 
+	# Add slight variation for wave interaction
+	var wave_variation: float = sin(wave_time * 10.0) * 0.1
+	friction = clamp(friction + wave_variation, 0.5, 2.0)
+
 	friction_cache[pos_key] = friction
 	return friction
 
